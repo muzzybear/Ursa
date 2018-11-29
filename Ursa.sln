@@ -5,7 +5,13 @@ VisualStudioVersion = 15.0.28010.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UrsaTest", "UrsaTest\UrsaTest.vcxproj", "{58C76CE5-05A7-48FE-82D9-DB9C8C72B7D5}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UrsaCore", "UrsaCore\UrsaCore.vcxitems", "{6037EE36-696B-47B5-8650-5C35B3E8D015}"
+EndProject
 Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		UrsaCore\UrsaCore.vcxitems*{58c76ce5-05a7-48fe-82d9-db9c8c72b7d5}*SharedItemsImports = 4
+		UrsaCore\UrsaCore.vcxitems*{6037ee36-696b-47b5-8650-5c35b3e8d015}*SharedItemsImports = 9
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
