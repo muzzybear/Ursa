@@ -20,6 +20,11 @@ int main(int argc, char *argv[])
 
 		ursa::transform_2d();
 		ursa::draw_triangles(vertices, 3);
+
+		ursa::Rect r = ursa::screenrect();
+		ursa::Rect r2 = ursa::Rect{ {0,0}, {200,100} }.centerAt(r.size * 0.5f);
+		ursa::draw_quad(r2);
+
 	});
 
 	ursa::run();

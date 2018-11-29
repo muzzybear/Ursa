@@ -14,15 +14,28 @@ namespace ursa {
 		glm::vec4 color;
 	};
 
+	struct Rect {
+		glm::vec2 pos;
+		glm::vec2 size;
+
+		Rect centerAt(glm::vec2 center) {
+			return {center - size*0.5f, size};
+		}
+	};
+
 	namespace internal {
 		void create_internal_objects();
 		void swap_window();
 		void quit();
 	}
 
+	Rect screenrect();
+
 	void transform_2d();
 
 	void draw_triangles(Vertex vertices[], int count);
+
+	void draw_quad(Rect rect, glm::vec4 color = {1.0f, 1.0f, 1.0f, 1.0f});
 
 	void window(int width, int height);
 	void set_framefunc(std::function<void(float)> framefunc);

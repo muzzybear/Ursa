@@ -237,6 +237,12 @@ void main()
 
 	// ...
 
+	Rect screenrect() {
+		int width = 0, height = 0;
+		SDL_GetWindowSize(internal::g_window, &width, &height);
+		return { {0,0}, {width,height} };
+	}
+
 	/// Set up ortho transformation with pixel coordinates
 	void transform_2d() {
 		int width = 0, height = 0;
@@ -253,6 +259,18 @@ void main()
 		glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex)*count, vertices, GL_DYNAMIC_DRAW);
 		glDrawArrays(GL_TRIANGLES, 0, count);
+	}
+
+	void draw_quad(Rect r, glm::vec4 color) {
+		Vertex vertices[6] = {
+			{{r.pos.x, r.pos.y, 0.0f}, {0.0f, 0.0f}, color},
+			{{r.pos.x+r.size.x, r.pos.y, 0.0f}, {1.0f, 0.0f}, color},
+			{{r.pos.x, r.pos.y+r.size.y, 0.0f}, {0.0f, 1.0f}, color},
+			{{r.pos.x+r.size.x, r.pos.y, 0.0f}, {1.0f, 0.0f}, color},
+			{{r.pos.x+r.size.x, r.pos.y+r.size.y, 0.0f}, {1.0f, 1.0f}, color},
+			{{r.pos.x, r.pos.y+r.size.y, 0.0f}, {0.0f, 1.0f}, color},
+		};
+		draw_triangles(vertices, 6);
 	}
 
 	// ...
