@@ -23,11 +23,17 @@ namespace ursa {
 		}
 	};
 
+	struct TextureHandle {
+		unsigned int handle;
+	};
+
 	namespace internal {
 		void create_internal_objects();
 		void swap_window();
 		void quit();
 	}
+
+	TextureHandle texture(const char *filename);
 
 	Rect screenrect();
 
@@ -36,6 +42,7 @@ namespace ursa {
 	void draw_triangles(Vertex vertices[], int count);
 
 	void draw_quad(Rect rect, glm::vec4 color = {1.0f, 1.0f, 1.0f, 1.0f});
+	void draw_quad(TextureHandle tex, Rect rect, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
 
 	void window(int width, int height);
 	void set_framefunc(std::function<void(float)> framefunc);

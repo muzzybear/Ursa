@@ -14,6 +14,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 /*
 
 void main() {
@@ -112,13 +115,19 @@ in vec4 color;
 
 out vec4 FragColor;
 
+uniform sampler2D tex;
+uniform bool use_tex;
+
 void main()
 {
-    FragColor = color;
+	if (use_tex) {
+		vec4 texcolor = texture(tex, uv);
+		FragColor = texcolor * color;
+	} else {
+	    FragColor = color;
+	}
 })";
 		GLuint make_shader(GLenum shaderType, const char *source) {
-			create_internal_objects();
-
 			GLuint handle = glCreateShader(shaderType);
 
 			glShaderSource(handle, 1, &source, nullptr);
@@ -177,8 +186,6 @@ void main()
 			}
 
 			glUseProgram(g_shader);
-
-			initialized = true;
 		}
 
 		void create_window(int width, int height) {
@@ -236,6 +243,36 @@ void main()
 	}
 
 	// ...
+ 
+	TextureHandle texture(const char *filename) {
+		GLuint handle = 0;
+		glGenTextures(1, &handle);
+		// TODO set min/mag filter or some other tex parameters?
+
+		// load file
+		// TODO SDL_GetBasePath() + name? need a resource management scheme
+		int width = 0, height = 0, channels = 0;
+		uint8_t *pixels = stbi_load(filename, &width, &height, &channels, 0 /*STBI_rgb_alpha*/);
+		if (!pixels) {
+			// TODO error handling
+			abort();
+			return { 0 };
+		}
+
+		// set texture data
+		assert((channels == 3) || (channels==4));
+		GLenum format = (channels == 3) ? GL_RGB : GL_RGBA;
+		glBindTexture(GL_TEXTURE_2D, handle);
+		glTexImage2D(GL_TEXTURE_2D, 0 /*miplevel*/, format, width, height, 0, format, GL_UNSIGNED_BYTE, pixels);
+		glGenerateMipmap(GL_TEXTURE_2D);
+		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		stbi_image_free(pixels);
+
+		return { handle };
+	}
+
+	// ...
 
 	Rect screenrect() {
 		int width = 0, height = 0;
@@ -259,6 +296,19 @@ void main()
 		glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex)*count, vertices, GL_DYNAMIC_DRAW);
 		glDrawArrays(GL_TRIANGLES, 0, count);
+	}
+
+	void draw_quad(TextureHandle tex, Rect rect, glm::vec4 color)
+	{
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, tex.handle);
+		GLint texloc = glGetUniformLocation(internal::g_shader, "tex");
+		GLint usetexloc = glGetUniformLocation(internal::g_shader, "use_tex");
+		glUniform1i(texloc, 0 /*texture unit*/);
+		glUniform1i(usetexloc, GL_TRUE);
+		draw_quad(rect, color);
+		glUniform1i(usetexloc, GL_FALSE);
+		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 
 	void draw_quad(Rect r, glm::vec4 color) {

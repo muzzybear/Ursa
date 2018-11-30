@@ -14,6 +14,8 @@ int main(int argc, char *argv[])
 		{{150.0f, 150.f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}
 	};
 
+	auto tex = ursa::texture(R"(C:\Windows\Web\Wallpaper\Theme1\img1.jpg)");
+
 	ursa::set_framefunc([&](float deltaTime) {
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -22,8 +24,8 @@ int main(int argc, char *argv[])
 		ursa::draw_triangles(vertices, 3);
 
 		ursa::Rect r = ursa::screenrect();
-		ursa::Rect r2 = ursa::Rect{ {0,0}, {200,100} }.centerAt(r.size * 0.5f);
-		ursa::draw_quad(r2);
+		ursa::Rect r2 = ursa::Rect{ {0,0}, {400,200} }.centerAt(r.size * 0.5f);
+		ursa::draw_quad(tex, r2);
 
 	});
 
