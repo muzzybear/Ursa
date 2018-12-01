@@ -20,18 +20,31 @@ namespace ursa {
 		glm::vec2 pos;
 		glm::vec2 size;
 
+		float left() const { return pos.x; }
+		float right() const { return pos.x + size.x; }
+		float top() const { return pos.y; }
+		float bottom() const { return pos.y + size.y; }
+
 		glm::vec2 center() { return pos + size * 0.5f; }
 		Rect centerAt(glm::vec2 center) { return {center - size*0.5f, size}; }
+		Rect expand(float margin) { return { pos - glm::vec2(margin), size + glm::vec2(margin * 2) }; }
 
-		Rect() {}
-		Rect(glm::vec2 size) : size(size) {}
+		Rect() : pos(), size() {}
+		Rect(glm::vec2 size) : pos(), size(size) {}
 		Rect(glm::vec2 pos, glm::vec2 size) : pos(pos), size(size) {}
-		Rect(float width, float height) : size(width, height) {}
+		Rect(float width, float height) : pos(), size(width, height) {}
 		Rect(float x, float y, float width, float height) : pos(x, y), size(width, height) {}
 	};
 
 	struct TextureHandle {
 		unsigned int handle;
+		// Carrying metadata with the handle to avoid lookups
+		// The downside is that different copies of the handle might get out of sync
+		// TODO consider some shared_ptr mechanic to automatically delete the opengl resources and keep metadata in sync
+		int width, height;
+
+		glm::vec2 size() { return { width, height }; }
+		Rect bounds() { return Rect(width, height); }
 	};
 
 	class EventHandler {
@@ -47,6 +60,7 @@ namespace ursa {
 	};
 
 	TextureHandle texture(const char *filename);
+	TextureHandle texture(int width, int height, const void *data);
 
 	Rect screenrect();
 
@@ -60,6 +74,9 @@ namespace ursa {
 
 	void draw_quad(Rect rect, glm::vec4 color = {1.0f, 1.0f, 1.0f, 1.0f});
 	void draw_quad(TextureHandle tex, Rect rect, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
+	void draw_quad(TextureHandle tex, Rect rect, Rect crop, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
+
+	void draw_9patch(TextureHandle tex, Rect rect, int margin, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
 
 	void window(int width, int height);
 	void set_framefunc(std::function<void(float)> framefunc);

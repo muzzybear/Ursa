@@ -236,12 +236,28 @@ void main()
 	}
 
 	// ...
- 
-	TextureHandle texture(const char *filename) {
+
+	TextureHandle internal_texture(int width, int height, const void *data, GLenum format) {
+		assert(data != nullptr);
+
 		GLuint handle = 0;
 		glGenTextures(1, &handle);
 		// TODO set min/mag filter or some other tex parameters?
 
+		glBindTexture(GL_TEXTURE_2D, handle);
+		glTexImage2D(GL_TEXTURE_2D, 0 /*miplevel*/, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		return { handle, width, height };
+	}
+
+	TextureHandle texture(int width, int height, const void *data) {
+		return internal_texture(width, height, data, GL_RGBA);
+	}
+
+	TextureHandle texture(const char *filename) {
 		// load file
 		// TODO SDL_GetBasePath() + name? need a resource management scheme
 		int width = 0, height = 0, channels = 0;
@@ -252,17 +268,12 @@ void main()
 			return { 0 };
 		}
 
-		// set texture data
 		assert((channels == 3) || (channels==4));
 		GLenum format = (channels == 3) ? GL_RGB : GL_RGBA;
-		glBindTexture(GL_TEXTURE_2D, handle);
-		glTexImage2D(GL_TEXTURE_2D, 0 /*miplevel*/, format, width, height, 0, format, GL_UNSIGNED_BYTE, pixels);
-		glGenerateMipmap(GL_TEXTURE_2D);
-		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glBindTexture(GL_TEXTURE_2D, 0);
+		TextureHandle handle = internal_texture(width, height, pixels, format);
 		stbi_image_free(pixels);
 
-		return { handle };
+		return handle;
 	}
 
 	// ...
@@ -308,7 +319,19 @@ void main()
 		glDrawArrays(GL_POINTS, 0, count);
 	}
 
-	void draw_quad(TextureHandle tex, Rect rect, glm::vec4 color)
+	void internal_draw_quad(Rect r, Rect uv, glm::vec4 color) {
+		Vertex vertices[6] = {
+			{{r.left(),  r.top(),    0.0f}, {uv.left(),  uv.top()},    color},
+			{{r.right(), r.top(),    0.0f}, {uv.right(), uv.top()},    color},
+			{{r.left(),  r.bottom(), 0.0f}, {uv.left(),  uv.bottom()}, color},
+			{{r.right(), r.top(),    0.0f}, {uv.right(), uv.top()},    color},
+			{{r.right(), r.bottom(), 0.0f}, {uv.right(), uv.bottom()}, color},
+			{{r.left(),  r.bottom(), 0.0f}, {uv.left(),  uv.bottom()}, color},
+		};
+		draw_triangles(vertices, 6);
+	}
+
+	void draw_quad(TextureHandle tex, Rect rect, Rect crop, glm::vec4 color)
 	{
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, tex.handle);
@@ -316,22 +339,50 @@ void main()
 		GLint usetexloc = glGetUniformLocation(internal::g_shader, "use_tex");
 		glUniform1i(texloc, 0 /*texture unit*/);
 		glUniform1i(usetexloc, GL_TRUE);
-		draw_quad(rect, color);
+		Rect uv = { crop.pos / tex.size(), crop.size / tex.size() };
+		internal_draw_quad(rect, uv, color);
 		glUniform1i(usetexloc, GL_FALSE);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 
 	void draw_quad(Rect r, glm::vec4 color) {
-		Vertex vertices[6] = {
-			{{r.pos.x, r.pos.y, 0.0f}, {0.0f, 0.0f}, color},
-			{{r.pos.x+r.size.x, r.pos.y, 0.0f}, {1.0f, 0.0f}, color},
-			{{r.pos.x, r.pos.y+r.size.y, 0.0f}, {0.0f, 1.0f}, color},
-			{{r.pos.x+r.size.x, r.pos.y, 0.0f}, {1.0f, 0.0f}, color},
-			{{r.pos.x+r.size.x, r.pos.y+r.size.y, 0.0f}, {1.0f, 1.0f}, color},
-			{{r.pos.x, r.pos.y+r.size.y, 0.0f}, {0.0f, 1.0f}, color},
-		};
-		draw_triangles(vertices, 6);
+		internal_draw_quad(r, Rect(1, 1), color);
 	}
+
+	void draw_quad(TextureHandle tex, Rect rect, glm::vec4 color) {
+		draw_quad(tex, rect, tex.bounds(), color);
+	}
+
+	void draw_9patch(TextureHandle tex, Rect rect, int margin, glm::vec4 color) {
+		float border = margin;
+		// ninepatch widths for output rect
+		float nw[3] = { border, rect.size.x - border * 2, border };
+		float nh[3] = { border, rect.size.y - border * 2, border };
+		// ninepatch offsets
+		float nx[3] = { 0, nw[0], nw[0] + nw[1] };
+		float ny[3] = { 0, nh[0], nh[0] + nh[1]	};
+
+		const float tw = tex.width;
+		const float th = tex.height;
+		Rect crop = tex.bounds();
+
+		// ninepatch widths for texture
+		float tnw[3] = { border, tw - border * 2, border };
+		float tnh[3] = { border, th - border * 2, border };
+		// and the offset
+		float tnx[3] = { 0, tnw[0], tnw[0] + tnw[1] };
+		float tny[3] = { 0, tnh[0], tnh[0] + tnh[1] };
+
+		for (int y = 0; y < 3; y++) {
+			for (int x = 0; x < 3; x++) {
+				Rect patch(rect.pos.x + nx[x], rect.pos.y + ny[y], nw[x], nh[y]);
+				Rect croppatch(crop.pos.x + tnx[x], crop.pos.y + tny[y], tnw[x], tnh[y]);
+				draw_quad(tex, patch, croppatch, color);
+
+			}
+		}
+	}
+
 
 	// ...
 
