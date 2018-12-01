@@ -51,10 +51,12 @@ namespace ursa {
 	Rect screenrect();
 
 	void transform_2d();
+	void transform_3d(glm::mat4 transform = glm::mat4());
 
 	void clear(glm::vec4 color = { 0.0f, 0.0f, 0.0f, 0.0f });
 
 	void draw_triangles(Vertex vertices[], int count);
+	void draw_points(Vertex vertices[], int count);
 
 	void draw_quad(Rect rect, glm::vec4 color = {1.0f, 1.0f, 1.0f, 1.0f});
 	void draw_quad(TextureHandle tex, Rect rect, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });

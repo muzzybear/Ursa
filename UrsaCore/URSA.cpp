@@ -283,6 +283,12 @@ void main()
 		glUniformMatrix4fv(loc, 1, GL_FALSE, &transform[0][0]);
 	}
 
+	/// Set up 3d transformation with [-1..1] coordinate range
+	void transform_3d(glm::mat4 transform) {
+		GLint loc = glGetUniformLocation(internal::g_shader, "transform");
+		glUniformMatrix4fv(loc, 1, GL_FALSE, &transform[0][0]);
+	}
+
 	// ...
 
 	void clear(glm::vec4 color) {
@@ -294,6 +300,12 @@ void main()
 		glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex)*count, vertices, GL_DYNAMIC_DRAW);
 		glDrawArrays(GL_TRIANGLES, 0, count);
+	}
+
+	void draw_points(Vertex vertices[], int count) {
+		glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex)*count, vertices, GL_DYNAMIC_DRAW);
+		glDrawArrays(GL_POINTS, 0, count);
 	}
 
 	void draw_quad(TextureHandle tex, Rect rect, glm::vec4 color)
@@ -366,9 +378,17 @@ void main()
 
 		internal::create_internal_objects();
 
+		const int fpsLimit = 60;
+		const uint32_t minimumFrameTicks = 1000 / fpsLimit;
+
 		g_quit = false;
 		SDL_Event sdlEvent;
+		uint32_t lastTicks = SDL_GetTicks();
 		while (!g_quit) {
+			uint32_t currentTicks = SDL_GetTicks();
+			uint32_t deltaTicks = currentTicks - lastTicks;
+			lastTicks = currentTicks;
+
 			while (SDL_PollEvent(&sdlEvent) != 0) {
 				if (sdlEvent.type == SDL_QUIT) {
 					g_quit = true;
@@ -377,13 +397,18 @@ void main()
 					g_eventhandler->handle(&sdlEvent);
 			}
 
-			// FIXME implement
-			float deltaTime = 0.0f;
+			float deltaTime = deltaTicks * 0.001f;
 
 			if (g_framefunc)
 				g_framefunc(deltaTime);
 
 			ursa::internal::swap_window();
+			
+			// limit fps because swapwindow doesn't necessarily wait (e.g. if the window is completely hidden)
+			uint32_t frameTicks = SDL_GetTicks() - currentTicks;
+			if (frameTicks < minimumFrameTicks) {
+				SDL_Delay(minimumFrameTicks - frameTicks);
+			}
 		}
 		ursa::internal::quit();
 	}
