@@ -4,6 +4,8 @@
 
 #include <glm/glm.hpp>
 
+#include <memory>
+
 namespace ursa {
 
 	// TODO normals
@@ -27,11 +29,17 @@ namespace ursa {
 		unsigned int handle;
 	};
 
-	namespace internal {
-		void create_internal_objects();
-		void swap_window();
-		void quit();
-	}
+	class EventHandler {
+		using HandlerFunc = std::function<void(void *)>;
+		struct impl;
+		std::unique_ptr<impl> pImpl;
+	public:
+		EventHandler();
+		~EventHandler();
+		// TODO do we need multiple handlers for single event? do we need unhooking?
+		void hook(uint32_t type, HandlerFunc func);
+		void handle(void *e);
+	};
 
 	TextureHandle texture(const char *filename);
 
@@ -47,5 +55,8 @@ namespace ursa {
 	void window(int width, int height);
 	void set_framefunc(std::function<void(float)> framefunc);
 
+	void set_eventhandler(const std::shared_ptr<EventHandler> &handler);
+
 	void run();
+	void terminate();
 }

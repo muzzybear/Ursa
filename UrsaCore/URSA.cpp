@@ -17,17 +17,10 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include <memory>
+#include <map>
+
 /*
-
-void main() {
-	auto tex = ursa::texture("foo.png");
-
-	ursa::set_framefunc([&](){
-		ursa::draw_quad(tex, 200,200, 100,100);
-	});
-
-	ursa::run();
-}
 
 void main() {
 	ursa::window(800,600);
@@ -325,7 +318,29 @@ void main()
 
 	// ...
 
+	EventHandler::EventHandler() : pImpl(std::make_unique<impl>()) {}
+	EventHandler::~EventHandler() = default;
+
+	struct EventHandler::impl {
+		std::map<uint32_t, HandlerFunc> handlers;
+	};
+
+	void EventHandler::hook(uint32_t type, HandlerFunc func) {
+		pImpl->handlers.insert_or_assign(type, func);
+	}
+
+	void EventHandler::handle(void *e) {
+		auto f = pImpl->handlers.find(static_cast<SDL_Event*>(e)->type);
+		if (f != pImpl->handlers.end()) {
+			f->second(e);
+		}
+	}
+
+	// ...
+
 	std::function<void(float)> g_framefunc;
+	std::shared_ptr<EventHandler> g_eventhandler;
+	bool g_quit = false;
 
 	void window(int width, int height) {
 		internal::create_window(width, height);
@@ -333,7 +348,11 @@ void main()
 
 	void set_framefunc(std::function<void(float)> framefunc) {
 		g_framefunc = framefunc;
-	}	
+	}
+
+	void set_eventhandler(const std::shared_ptr<EventHandler> &handler) {
+		g_eventhandler = handler;
+	}
 
 	void run() {
 		// default to windowed mode in 800x600
@@ -342,16 +361,15 @@ void main()
 
 		internal::create_internal_objects();
 
-		bool quit = false;
+		g_quit = false;
 		SDL_Event sdlEvent;
-		while (!quit)
-		{
-			while (SDL_PollEvent(&sdlEvent) != 0)
-			{
-				if (sdlEvent.type == SDL_QUIT)
-				{
-					quit = true;
+		while (!g_quit) {
+			while (SDL_PollEvent(&sdlEvent) != 0) {
+				if (sdlEvent.type == SDL_QUIT) {
+					g_quit = true;
 				}
+				if (g_eventhandler)
+					g_eventhandler->handle(&sdlEvent);
 			}
 
 			// FIXME implement
@@ -363,6 +381,10 @@ void main()
 			ursa::internal::swap_window();
 		}
 		ursa::internal::quit();
+	}
+
+	void terminate() {
+		g_quit = true;
 	}
 
 }

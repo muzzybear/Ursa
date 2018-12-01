@@ -29,6 +29,16 @@ int main(int argc, char *argv[])
 
 	});
 
+	auto events = std::make_shared<ursa::EventHandler>();
+	ursa::set_eventhandler(events);
+
+	events->hook(SDL_KEYDOWN, [&](void *e) {
+		auto *event = static_cast<SDL_KeyboardEvent*>(e);
+		if (event->keysym.scancode == SDL_SCANCODE_ESCAPE) {
+			ursa::terminate();
+		}
+	});
+
 	ursa::run();
 
 	return 0;
