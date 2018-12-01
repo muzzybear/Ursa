@@ -17,14 +17,13 @@ int main(int argc, char *argv[])
 	auto tex = ursa::texture(R"(C:\Windows\Web\Wallpaper\Theme1\img1.jpg)");
 
 	ursa::set_framefunc([&](float deltaTime) {
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		ursa::clear({0.20f, 0.32f, 0.35f, 1.0f});
 
 		ursa::transform_2d();
 		ursa::draw_triangles(vertices, 3);
 
 		ursa::Rect r = ursa::screenrect();
-		ursa::Rect r2 = ursa::Rect{ {0,0}, {400,200} }.centerAt(r.size * 0.5f);
+		ursa::Rect r2 = ursa::Rect(400,200).centerAt(r.center());
 		ursa::draw_quad(tex, r2);
 
 	});

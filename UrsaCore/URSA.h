@@ -1,10 +1,10 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 
 #include <glm/glm.hpp>
 
-#include <memory>
 
 namespace ursa {
 
@@ -20,9 +20,14 @@ namespace ursa {
 		glm::vec2 pos;
 		glm::vec2 size;
 
-		Rect centerAt(glm::vec2 center) {
-			return {center - size*0.5f, size};
-		}
+		glm::vec2 center() { return pos + size * 0.5f; }
+		Rect centerAt(glm::vec2 center) { return {center - size*0.5f, size}; }
+
+		Rect() {}
+		Rect(glm::vec2 size) : size(size) {}
+		Rect(glm::vec2 pos, glm::vec2 size) : pos(pos), size(size) {}
+		Rect(float width, float height) : size(width, height) {}
+		Rect(float x, float y, float width, float height) : pos(x, y), size(width, height) {}
 	};
 
 	struct TextureHandle {
@@ -46,6 +51,8 @@ namespace ursa {
 	Rect screenrect();
 
 	void transform_2d();
+
+	void clear(glm::vec4 color = { 0.0f, 0.0f, 0.0f, 0.0f });
 
 	void draw_triangles(Vertex vertices[], int count);
 
