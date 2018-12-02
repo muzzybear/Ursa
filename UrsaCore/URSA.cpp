@@ -354,31 +354,22 @@ void main()
 	}
 
 	void draw_9patch(TextureHandle tex, Rect rect, int margin, glm::vec4 color) {
-		float border = margin;
-		// ninepatch widths for output rect
-		float nw[3] = { border, rect.size.x - border * 2, border };
-		float nh[3] = { border, rect.size.y - border * 2, border };
-		// ninepatch offsets
-		float nx[3] = { 0, nw[0], nw[0] + nw[1] };
-		float ny[3] = { 0, nh[0], nh[0] + nh[1]	};
-
-		const float tw = tex.width;
-		const float th = tex.height;
+		glm::vec2 border(margin);
 		Rect crop = tex.bounds();
 
-		// ninepatch widths for texture
-		float tnw[3] = { border, tw - border * 2, border };
-		float tnh[3] = { border, th - border * 2, border };
-		// and the offset
-		float tnx[3] = { 0, tnw[0], tnw[0] + tnw[1] };
-		float tny[3] = { 0, tnh[0], tnh[0] + tnh[1] };
+		// ninepatch widths ands offsets for output rect
+		glm::vec2 nsize[3] = { border, rect.size - border * 2.0f, border };
+		glm::vec2 npos[3] = { glm::vec2(0.0f), nsize[0], nsize[0] + nsize[1] };
+
+		// ninepatch widths ands offsets for texture
+		glm::vec2 tnsize[3] = { border, crop.size - border * 2.0f, border };
+		glm::vec2 tnpos[3] = { glm::vec2(0.0f), tnsize[0], tnsize[0] + tnsize[1] };
 
 		for (int y = 0; y < 3; y++) {
 			for (int x = 0; x < 3; x++) {
-				Rect patch(rect.pos.x + nx[x], rect.pos.y + ny[y], nw[x], nh[y]);
-				Rect croppatch(crop.pos.x + tnx[x], crop.pos.y + tny[y], tnw[x], tnh[y]);
-				draw_quad(tex, patch, croppatch, color);
-
+				Rect drawpatch(rect.pos.x + npos[x].x,  rect.pos.y + npos[y].y,  nsize[x].x,  nsize[y].y);
+				Rect croppatch(crop.pos.x + tnpos[x].x, crop.pos.y + tnpos[y].y, tnsize[x].x, tnsize[y].y);
+				draw_quad(tex, drawpatch, croppatch, color);
 			}
 		}
 	}
