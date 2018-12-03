@@ -179,6 +179,9 @@ void main()
 			}
 
 			glUseProgram(g_shader);
+			// default to 2d mode
+			transform_2d();
+
 		}
 
 		void create_window(int width, int height) {
@@ -220,7 +223,12 @@ void main()
 			glDepthFunc(GL_LEQUAL);
 
 			glViewport(0, 0, width, height);
+		}
 
+		void requires_window() {
+			// default to windowed mode in 800x600
+			if (!internal::g_window)
+				internal::create_window(800, 600);
 		}
 
 		void swap_window() {
@@ -239,6 +247,8 @@ void main()
 
 	TextureHandle internal_texture(int width, int height, const void *data, GLenum format) {
 		assert(data != nullptr);
+
+		internal::requires_window();
 
 		GLuint handle = 0;
 		glGenTextures(1, &handle);
@@ -317,6 +327,12 @@ void main()
 		glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex)*count, vertices, GL_DYNAMIC_DRAW);
 		glDrawArrays(GL_POINTS, 0, count);
+	}
+
+	void draw_lines(Vertex vertices[], int count) {
+		glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex)*count, vertices, GL_DYNAMIC_DRAW);
+		glDrawArrays(GL_LINES, 0, count);
 	}
 
 	void internal_draw_quad(Rect r, Rect uv, glm::vec4 color) {
@@ -414,9 +430,7 @@ void main()
 	}
 
 	void run() {
-		// default to windowed mode in 800x600
-		if (!internal::g_window)
-			internal::create_window(800, 600);
+		internal::requires_window();
 
 		internal::create_internal_objects();
 
