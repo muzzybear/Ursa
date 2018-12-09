@@ -370,7 +370,7 @@ void main()
 	}
 
 	void draw_9patch(TextureHandle tex, Rect rect, int margin, glm::vec4 color) {
-		glm::vec2 border(margin);
+		glm::vec2 border((float)margin);
 		Rect crop = tex.bounds();
 
 		// ninepatch widths ands offsets for output rect

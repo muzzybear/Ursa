@@ -43,8 +43,8 @@ namespace ursa {
 		// TODO consider some shared_ptr mechanic to automatically delete the opengl resources and keep metadata in sync
 		int width, height;
 
-		glm::vec2 size() { return { width, height }; }
-		Rect bounds() { return Rect(width, height); }
+		glm::vec2 size() { return { (float)width, (float)height }; }
+		Rect bounds() { return Rect((float)width, (float)height); }
 	};
 
 	class EventHandler {
