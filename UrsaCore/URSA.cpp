@@ -15,10 +15,16 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
+#define STB_RECT_PACK_IMPLEMENTATION
+#define STB_TRUETYPE_IMPLEMENTATION
 #include <stb_image.h>
+#include <stb_rect_pack.h>
+#include <stb_truetype.h>
 
 #include <memory>
 #include <map>
+#include <vector>
+#include <fstream>
 
 /*
 
@@ -110,12 +116,17 @@ out vec4 FragColor;
 
 uniform sampler2D tex;
 uniform bool use_tex;
+uniform bool alpha_tex;
 
 void main()
 {
 	if (use_tex) {
 		vec4 texcolor = texture(tex, uv);
-		FragColor = texcolor * color;
+		if (alpha_tex) {
+			FragColor = vec4(1.0f, 1.0f, 1.0f, texcolor.r) * color;
+		} else {
+			FragColor = texcolor * color;
+		}
 	} else {
 	    FragColor = color;
 	}
@@ -245,6 +256,101 @@ void main()
 
 	// ...
 
+	std::unique_ptr<char[]> file_contents(const char *filename) {
+		std::ifstream file(filename, std::ios::binary | std::ios::ate);
+		int filesize = (int)file.tellg();
+		file.seekg(0, std::ios::beg);
+		auto buf = std::make_unique<char[]>(filesize);
+		file.read(buf.get(), filesize);
+		if (!file) {
+			// TODO handle loading error
+			assert(0);
+		}
+		return buf;
+	}
+
+	// ...
+
+	struct chardatas {
+		stbtt_packedchar data[128];
+	};
+
+	class FontAtlasImpl {
+	public:
+		void add_truetype(const char *filename, float font_size) {
+			m_sourcelist.emplace_back(filename, std::vector<float>{font_size});
+		}
+		void add_truetype(const char *filename, std::initializer_list<float> font_sizes) {
+			m_sourcelist.emplace_back(filename, std::vector<float>{font_sizes});
+		}
+
+		void bake(int texwidth, int texheight) {
+			std::unique_ptr<unsigned char[]> fontbitmap = std::make_unique<unsigned char[]>(texwidth*texheight);
+			stbtt_pack_context spc;
+			stbtt_PackBegin(&spc, fontbitmap.get(), texwidth, texheight, 0, 1, nullptr);
+
+			for (const auto &t : m_sourcelist) {
+				const auto &filename = std::get<0>(t);
+				const auto &sizes = std::get<1>(t);
+
+				// TODO avoid conversion, use std::string everywhere?
+				auto fontbuf = file_contents(filename.c_str());
+
+				for (float size : sizes) {
+					m_chardatas.emplace_back();
+					stbtt_PackSetOversampling(&spc, 1, 1);
+					stbtt_PackFontRange(&spc, (unsigned char *)fontbuf.get(), 0, size, 32, 96, m_chardatas.back().data + 32);
+				}
+			}
+
+			stbtt_PackEnd(&spc);
+
+			m_tex = ursa::texture8bpp(texwidth, texheight, fontbitmap.get());
+		}
+
+		ursa::TextureHandle tex() const { return m_tex; }
+
+		GlyphInfo glyphInfo(int fontIndex, int codepoint) const {
+			const auto &c = m_chardatas[fontIndex].data[codepoint];
+			return {
+				{{c.x0, c.y0}, {c.x1 - c.x0, c.y1 - c.y0}},
+				{{c.xoff, c.yoff}, {c.xoff2 - c.xoff, c.yoff2 - c.yoff}},
+				c.xadvance
+			};
+		}
+	private:
+		ursa::TextureHandle m_tex;
+		std::vector<chardatas> m_chardatas;
+		std::vector<std::tuple<std::string, std::vector<float>>> m_sourcelist;
+
+	};
+
+	FontAtlas::FontAtlas() : impl(new FontAtlasImpl) {}
+	FontAtlas::FontAtlas(const FontAtlas & other) : impl{ new FontAtlasImpl{*(other.impl)} } {}
+	FontAtlas::FontAtlas(FontAtlas && other) : impl{ nullptr } { impl.swap(other.impl); }
+	FontAtlas & FontAtlas::operator=(const FontAtlas & other) {
+		if (&other != this) {
+			impl.reset(new FontAtlasImpl{ *(other.impl) });
+		}
+		return *this;
+	}
+	FontAtlas & FontAtlas::operator=(FontAtlas && other) {
+		if (&other != this) {
+			impl.swap(other.impl);
+		}
+		return *this;
+	}
+	FontAtlas::~FontAtlas() = default;
+	void FontAtlas::add_truetype(const char *filename, float font_size) { impl->add_truetype(filename, font_size); }
+	void FontAtlas::add_truetype(const char *filename, std::initializer_list<float> font_sizes) { impl->add_truetype(filename, font_sizes); }
+	void FontAtlas::bake(int texwidth, int texheight) { impl->bake(texwidth, texheight); }
+	ursa::TextureHandle FontAtlas::tex() const { return impl->tex(); }
+	GlyphInfo FontAtlas::glyphInfo(int fontIndex, int codepoint) const { return impl->glyphInfo(fontIndex, codepoint); }
+
+	FontAtlas font_atlas() { return {}; }
+
+	// ...
+
 	TextureHandle internal_texture(int width, int height, const void *data, GLenum format) {
 		assert(data != nullptr);
 
@@ -265,6 +371,14 @@ void main()
 
 	TextureHandle texture(int width, int height, const void *data) {
 		return internal_texture(width, height, data, GL_RGBA);
+	}
+
+	TextureHandle texture8bpp(int width, int height, const void *data) {
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		auto tex = internal_texture(width, height, data, GL_RED);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+		tex.kind = TextureHandle::TextureKind::Alpha;
+		return tex;
 	}
 
 	TextureHandle texture(const char *filename) {
@@ -310,6 +424,20 @@ void main()
 		glUniformMatrix4fv(loc, 1, GL_FALSE, &transform[0][0]);
 	}
 
+	void blend_enable()
+	{
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		// TODO different blending modes such as additive
+		//glBlendFunc(GL_ONE, GL_ONE);
+	}
+
+	void blend_disable()
+	{
+		glDisable(GL_BLEND);
+	}
+
 	// ...
 
 	void clear(glm::vec4 color) {
@@ -353,11 +481,14 @@ void main()
 		glBindTexture(GL_TEXTURE_2D, tex.handle);
 		GLint texloc = glGetUniformLocation(internal::g_shader, "tex");
 		GLint usetexloc = glGetUniformLocation(internal::g_shader, "use_tex");
+		GLint alphatexloc = glGetUniformLocation(internal::g_shader, "alpha_tex");
 		glUniform1i(texloc, 0 /*texture unit*/);
 		glUniform1i(usetexloc, GL_TRUE);
+		glUniform1i(alphatexloc, (tex.kind == TextureHandle::TextureKind::Alpha) ? GL_TRUE : GL_FALSE);
 		Rect uv = { crop.pos / tex.size(), crop.size / tex.size() };
 		internal_draw_quad(rect, uv, color);
 		glUniform1i(usetexloc, GL_FALSE);
+		glUniform1i(alphatexloc, GL_FALSE);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 
@@ -367,6 +498,22 @@ void main()
 
 	void draw_quad(TextureHandle tex, Rect rect, glm::vec4 color) {
 		draw_quad(tex, rect, tex.bounds(), color);
+	}
+
+	void draw_quads(TextureHandle tex, Rect rects[], Rect crops[], int count)
+	{
+		// TODO batch it
+		for (int i = 0; i < count; i++) {
+			draw_quad(tex, rects[i], crops[i]);
+		}
+	}
+
+	void draw_quads(TextureHandle tex, Rect rects[], Rect crops[], glm::vec4 colors[], int count)
+	{
+		// TODO batch it
+		for (int i = 0; i < count; i++) {
+			draw_quad(tex, rects[i], crops[i], colors[i]);
+		}
 	}
 
 	void draw_9patch(TextureHandle tex, Rect rect, int margin, glm::vec4 color) {

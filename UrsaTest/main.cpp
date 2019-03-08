@@ -50,6 +50,13 @@ int main(int argc, char *argv[])
 
 	float angle = 0.0f;
 
+	auto fonts = ursa::font_atlas();
+	fonts.add_truetype(R"(c:\windows\fonts\arialbd.ttf)", { 18.0f, 24.0f });
+	fonts.add_truetype(R"(c:\windows\fonts\arial.ttf)", 18.0f);
+	fonts.bake(512, 512);
+
+	// ...
+
 	ursa::set_framefunc([&](float deltaTime) {
 		ursa::clear({0.20f, 0.32f, 0.35f, 1.0f});
 		
@@ -67,6 +74,24 @@ int main(int argc, char *argv[])
 
 		ursa::transform_3d(transform);
 		ursa::draw_points(ball.data(), ball.size());
+
+		ursa::transform_2d();
+
+		// TODO ursa::draw_text
+		float x = 0;
+		std::vector<ursa::Rect> quads, crops;
+		for (char ch : "The quick brown fox jumps over the lazy dog") {
+			auto info = fonts.glyphInfo(0, ch);
+			//quads.push_back(info.bounds.offset(x, 16.0f).pixelAlign());
+			quads.push_back(info.bounds.offset(x, 16.0f));
+			crops.push_back(info.crop);
+			x += info.xadvance;
+		}
+
+		ursa::blend_enable();
+		ursa::draw_quad(fonts.tex(), ursa::Rect(512, 512).alignRight(ursa::screenrect().right()), glm::vec4{0.5f, 0.5f, 1.0f, 0.5f});
+		ursa::draw_quads(fonts.tex(), quads.data(), crops.data(), quads.size());
+		ursa::blend_disable();
 
 	});
 
