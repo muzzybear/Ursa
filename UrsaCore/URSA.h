@@ -60,14 +60,20 @@ namespace ursa {
 		Rect bounds() { return Rect((float)width, (float)height); }
 	};
 
-	struct GlyphInfo {
-		Rect crop;
-		Rect bounds;
-		float xadvance;
-	};
-
 	class FontAtlas {
 	public:
+		struct GlyphInfo {
+			Rect crop;
+			Rect bounds;
+			float xadvance;
+		};
+
+		struct FontInfo {
+			float ascent;
+			float descent;
+			float linegap;
+		};
+
 		FontAtlas();
 		FontAtlas(const FontAtlas & other);
 		FontAtlas(FontAtlas && other);
@@ -82,6 +88,7 @@ namespace ursa {
 
 		TextureHandle tex() const;
 		GlyphInfo glyphInfo(int fontIndex, int codepoint) const;
+		FontInfo fontInfo(int fontIndex) const;
 	private:
 		std::unique_ptr<class FontAtlasImpl> impl;
 	};

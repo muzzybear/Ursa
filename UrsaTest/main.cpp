@@ -5,8 +5,126 @@
 #include "URSA.h"
 
 #include <vector>
+#include <algorithm>
+#include <regex>
 #include <glm/gtc/random.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
+struct RectList {
+	std::vector<ursa::Rect> quads;
+	std::vector<ursa::Rect> crops;
+	std::vector<glm::vec4> colors;
+};
+
+class TextBlock {
+	struct textspan {
+		std::vector<std::string> tokens;
+		glm::vec4 color;
+		int fontIndex;
+	};
+	struct textline {
+		std::vector<textspan> spans;
+	};
+
+	const std::regex ws_re{ "\\s+" };
+
+public:
+	void clear() {
+		lines.clear();
+	}
+
+	void append(std::string text, glm::vec4 color = { 1.0f,1.0f,1.0f,1.0f }, int fontIndex = 0) {
+		if (lines.empty()) {
+			newline();
+		}
+
+		std::vector<std::string> tokens;
+		std::copy(
+			std::sregex_token_iterator(text.begin(), text.end(), ws_re, { -1, 0 }),
+			std::sregex_token_iterator(),
+			std::back_inserter(tokens));
+
+		lines.back().spans.push_back({ tokens, color, fontIndex });
+	}
+
+	void newline() {
+		lines.emplace_back();
+	}
+	RectList buildRects(const ursa::FontAtlas &fonts, ursa::Rect bounds) {
+		RectList rects;
+		float x{ bounds.pos.x }, y{ bounds.pos.y };
+		for (const auto &line : lines) {
+			// perform word wrapping into virtual lines, count tokens per vline to be used for geometry pass
+			// TODO whitespace token should probably be skipped upon wrapping
+			struct virtual_line {
+				float gap{ 0 }, baseline{ 0 }, descent{ 0 };
+				int tokens{ 0 };
+			};
+			std::vector<virtual_line> vlines{ {} };
+			float vx = 0;
+			for (const auto &span : line.spans) {
+				const auto &fontInfo = fonts.fontInfo(span.fontIndex);
+
+				for (const auto &token : span.tokens) {
+					float tokenWidth = 0;
+					// FIXME using xadvance isn't entirely accurate
+					for (const auto &ch : token) {
+						auto info = fonts.glyphInfo(span.fontIndex, ch);
+						tokenWidth += info.xadvance;
+					}
+					if (vx > 0 && vx + tokenWidth > bounds.size.x) {
+						// wrapped, start new vline and place token there
+						// TODO support splitting full line tokens?
+						vx = 0;
+						vlines.emplace_back();
+					}
+					vx += tokenWidth;
+					// slightly unnecessary to repeat this for every token, but it
+					// will reliably work even when the first token of the span wraps
+					auto &vline = vlines.back();
+					vline.tokens++;
+					vline.gap = std::max(vline.gap, fontInfo.linegap);
+					vline.baseline = std::max(vline.baseline, fontInfo.ascent);
+					vline.descent = std::min(vline.descent, fontInfo.descent);
+				}
+			}
+			// start from the first vline's baseline
+			y += vlines.front().baseline;
+
+			// gather the geometry for the line
+			int tokencounter = 0;
+			int vlinecounter = 0;
+			for (const auto &span : line.spans) {
+				for (const auto &token : span.tokens) {
+					// test wrapping
+					if (tokencounter >= vlines[vlinecounter].tokens) {
+						x = bounds.pos.x;
+						// move to next vline's baseline
+						y += vlines[vlinecounter].gap + vlines[vlinecounter+1].baseline - vlines[vlinecounter].descent;
+						vlinecounter++;
+						tokencounter = 0;
+					}
+					// generate token's geometry
+					for (const auto &ch : token) {
+						auto info = fonts.glyphInfo(span.fontIndex, ch);
+						rects.quads.push_back(info.bounds.offset(x, y));
+						rects.crops.push_back(info.crop);
+						rects.colors.push_back(span.color);
+						x += info.xadvance;
+					}
+					tokencounter++;
+				}
+			}
+
+			// next line
+			x = bounds.pos.x;
+			y += vlines.back().gap-vlines.back().descent;
+		}
+		return rects;
+	}
+private:
+	std::vector<textline> lines;
+};
 
 int main(int argc, char *argv[])
 {
@@ -51,8 +169,9 @@ int main(int argc, char *argv[])
 	float angle = 0.0f;
 
 	auto fonts = ursa::font_atlas();
-	fonts.add_truetype(R"(c:\windows\fonts\arialbd.ttf)", { 18.0f, 24.0f });
+	fonts.add_truetype(R"(c:\windows\fonts\arialbd.ttf)", { 18.0f, 36.0f });
 	fonts.add_truetype(R"(c:\windows\fonts\arial.ttf)", 18.0f);
+	fonts.add_truetype(R"(c:\windows\fonts\comic.ttf)", 24.0f);
 	fonts.bake(512, 512);
 
 	// ...
@@ -78,19 +197,25 @@ int main(int argc, char *argv[])
 		ursa::transform_2d();
 
 		// TODO ursa::draw_text
-		float x = 0;
-		std::vector<ursa::Rect> quads, crops;
-		for (char ch : "The quick brown fox jumps over the lazy dog") {
-			auto info = fonts.glyphInfo(0, ch);
-			//quads.push_back(info.bounds.offset(x, 16.0f).pixelAlign());
-			quads.push_back(info.bounds.offset(x, 16.0f));
-			crops.push_back(info.crop);
-			x += info.xadvance;
-		}
+		TextBlock tb;
+		tb.append("The quick brown fox jumps over the lazy dog");
+		tb.newline();
+		tb.append("Testing line gap code");
+		tb.newline();
+		tb.append("... just ", {1.0f,1.0f,1.0f,1.0f}, 2);
+		tb.append("Testing", {1.0f, 0.3f, 0.8f, 1.0f}, 1);
+		tb.newline();
+		tb.append("Yatta!");
+		tb.newline();
+		tb.append("Isn't it amazing?", {1.0f, 1.0f, 1.0f, 0.6f}, 3);
+
+		auto textrect = ursa::Rect{ 32,32,100,400 };
+		RectList rects = tb.buildRects(fonts, textrect);
 
 		ursa::blend_enable();
+		ursa::draw_quad(textrect, { 0.0f,0.0f,0.0f,0.4f });
 		ursa::draw_quad(fonts.tex(), ursa::Rect(512, 512).alignRight(ursa::screenrect().right()), glm::vec4{0.5f, 0.5f, 1.0f, 0.5f});
-		ursa::draw_quads(fonts.tex(), quads.data(), crops.data(), quads.size());
+		ursa::draw_quads(fonts.tex(), rects.quads.data(), rects.crops.data(), rects.colors.data(), rects.quads.size());
 		ursa::blend_disable();
 
 	});

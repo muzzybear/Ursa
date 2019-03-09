@@ -272,6 +272,7 @@ void main()
 	// ...
 
 	struct chardatas {
+		FontAtlas::FontInfo fontinfo;
 		stbtt_packedchar data[128];
 	};
 
@@ -295,9 +296,14 @@ void main()
 
 				// TODO avoid conversion, use std::string everywhere?
 				auto fontbuf = file_contents(filename.c_str());
+				stbtt_fontinfo fontinfo;
+				stbtt_InitFont(&fontinfo, (unsigned char*)fontbuf.get(), 0);
+				int ascent{ 0 }, descent{ 0 }, gap{ 0 }; // in FUnits
+				stbtt_GetFontVMetrics(&fontinfo, &ascent, &descent, &gap);
 
 				for (float size : sizes) {
-					m_chardatas.emplace_back();
+					float scale = stbtt_ScaleForPixelHeight(&fontinfo, size);
+					m_chardatas.push_back({ { ascent*scale, descent*scale, gap*scale }, {0} });
 					stbtt_PackSetOversampling(&spc, 1, 1);
 					stbtt_PackFontRange(&spc, (unsigned char *)fontbuf.get(), 0, size, 32, 96, m_chardatas.back().data + 32);
 				}
@@ -310,13 +316,17 @@ void main()
 
 		ursa::TextureHandle tex() const { return m_tex; }
 
-		GlyphInfo glyphInfo(int fontIndex, int codepoint) const {
+		FontAtlas::GlyphInfo glyphInfo(int fontIndex, int codepoint) const {
 			const auto &c = m_chardatas[fontIndex].data[codepoint];
 			return {
 				{{c.x0, c.y0}, {c.x1 - c.x0, c.y1 - c.y0}},
 				{{c.xoff, c.yoff}, {c.xoff2 - c.xoff, c.yoff2 - c.yoff}},
 				c.xadvance
 			};
+		}
+
+		FontAtlas::FontInfo fontInfo(int fontIndex) const {
+			return m_chardatas[fontIndex].fontinfo;
 		}
 	private:
 		ursa::TextureHandle m_tex;
@@ -345,7 +355,8 @@ void main()
 	void FontAtlas::add_truetype(const char *filename, std::initializer_list<float> font_sizes) { impl->add_truetype(filename, font_sizes); }
 	void FontAtlas::bake(int texwidth, int texheight) { impl->bake(texwidth, texheight); }
 	ursa::TextureHandle FontAtlas::tex() const { return impl->tex(); }
-	GlyphInfo FontAtlas::glyphInfo(int fontIndex, int codepoint) const { return impl->glyphInfo(fontIndex, codepoint); }
+	FontAtlas::GlyphInfo FontAtlas::glyphInfo(int fontIndex, int codepoint) const { return impl->glyphInfo(fontIndex, codepoint); }
+	FontAtlas::FontInfo FontAtlas::fontInfo(int fontIndex) const { return impl->fontInfo(fontIndex);  }
 
 	FontAtlas font_atlas() { return {}; }
 
