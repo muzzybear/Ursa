@@ -18,12 +18,15 @@ struct RectList {
 
 class TextBlock {
 	struct textspan {
-		std::vector<std::string> tokens;
+		std::string text;
 		glm::vec4 color;
 		int fontIndex;
 	};
-	struct textline {
+	struct texttoken {
 		std::vector<textspan> spans;
+	};
+	struct textline {
+		std::vector<texttoken> tokens;
 	};
 
 	const std::regex ws_re{ "\\s+" };
@@ -39,12 +42,45 @@ public:
 		}
 
 		std::vector<std::string> tokens;
+		// the regex token iterator will create empty token if input begins with whitespace, but not if it ends with whitespace
 		std::copy(
 			std::sregex_token_iterator(text.begin(), text.end(), ws_re, { -1, 0 }),
 			std::sregex_token_iterator(),
 			std::back_inserter(tokens));
 
-		lines.back().spans.push_back({ tokens, color, fontIndex });
+		auto iter = tokens.begin();
+		// merge the first new token into the last old token, if applicable
+		auto &linetokens = lines.back().tokens;
+		if (linetokens.size() > 0) {
+			bool lastIsWS = std::regex_match(linetokens.back().spans.back().text, ws_re);
+			// if the line begins with whitespace, the first token is empty
+			if (iter->size() == 0) {
+				// skip the dummy zero-length token
+				++iter;
+				// check the last token on the line, to test for two adjancent whitespace tokens
+				// TODO maybe texttoken itself should know if it's a whitespace token
+				if (iter != tokens.end() && lastIsWS) {
+					// combine whitespaces
+					// TODO ideally, if the styles are equal, new span isn't needed
+					linetokens.back().spans.push_back({ *iter++, color, fontIndex });
+				}
+			} else {
+				// first new token isn't whitespace
+				if (!lastIsWS) {
+					// ... and neither is the last of the old ones, merge
+					linetokens.back().spans.push_back({ *iter++, color, fontIndex });
+				}
+			}
+		}
+		
+		// process the rest normally
+		for (; iter != tokens.end(); ++iter) {
+			// skip zero-length tokens
+			if (iter->size() == 0)
+				continue;
+			linetokens.emplace_back();
+			linetokens.back().spans.push_back({*iter, color, fontIndex});
+		}
 	}
 
 	void newline() {
@@ -55,38 +91,40 @@ public:
 		float x{ bounds.pos.x }, y{ bounds.pos.y };
 		for (const auto &line : lines) {
 			// perform word wrapping into virtual lines, count tokens per vline to be used for geometry pass
-			// TODO whitespace token should probably be skipped upon wrapping
+			// TODO should whitespace tokens by omitted from rendering when they are adjacent to the wrap position?
 			struct virtual_line {
 				float gap{ 0 }, baseline{ 0 }, descent{ 0 };
 				int tokens{ 0 };
 			};
 			std::vector<virtual_line> vlines{ {} };
 			float vx = 0;
-			for (const auto &span : line.spans) {
-				const auto &fontInfo = fonts.fontInfo(span.fontIndex);
-
-				for (const auto &token : span.tokens) {
-					float tokenWidth = 0;
+			for (const auto &token : line.tokens) {
+				float tokenWidth = 0;
+				for (const auto &span : token.spans) {
+					const auto &fontInfo = fonts.fontInfo(span.fontIndex);
 					// FIXME using xadvance isn't entirely accurate
-					for (const auto &ch : token) {
+					for (const auto &ch : span.text) {
 						auto info = fonts.glyphInfo(span.fontIndex, ch);
 						tokenWidth += info.xadvance;
 					}
-					if (vx > 0 && vx + tokenWidth > bounds.size.x) {
-						// wrapped, start new vline and place token there
-						// TODO support splitting full line tokens?
-						vx = 0;
-						vlines.emplace_back();
-					}
-					vx += tokenWidth;
-					// slightly unnecessary to repeat this for every token, but it
-					// will reliably work even when the first token of the span wraps
-					auto &vline = vlines.back();
-					vline.tokens++;
+				}
+				if (vx > 0 && vx + tokenWidth > bounds.size.x) {
+					// wrapped, start new vline and place token there
+					// TODO support splitting full line tokens?
+					vx = 0;
+					vlines.emplace_back();
+				}
+				vx += tokenWidth;
+
+				// update current vline metrics based on token's sub-span metrics
+				auto &vline = vlines.back();
+				for (const auto &span : token.spans) {
+					const auto &fontInfo = fonts.fontInfo(span.fontIndex);
 					vline.gap = std::max(vline.gap, fontInfo.linegap);
 					vline.baseline = std::max(vline.baseline, fontInfo.ascent);
 					vline.descent = std::min(vline.descent, fontInfo.descent);
 				}
+				vline.tokens++;
 			}
 			// start from the first vline's baseline
 			y += vlines.front().baseline;
@@ -94,26 +132,26 @@ public:
 			// gather the geometry for the line
 			int tokencounter = 0;
 			int vlinecounter = 0;
-			for (const auto &span : line.spans) {
-				for (const auto &token : span.tokens) {
-					// test wrapping
-					if (tokencounter >= vlines[vlinecounter].tokens) {
-						x = bounds.pos.x;
-						// move to next vline's baseline
-						y += vlines[vlinecounter].gap + vlines[vlinecounter+1].baseline - vlines[vlinecounter].descent;
-						vlinecounter++;
-						tokencounter = 0;
-					}
-					// generate token's geometry
-					for (const auto &ch : token) {
+			for (const auto &token : line.tokens) {
+				// test wrapping
+				if (tokencounter >= vlines[vlinecounter].tokens) {
+					x = bounds.pos.x;
+					// move to next vline's baseline
+					y += vlines[vlinecounter].gap + vlines[vlinecounter + 1].baseline - vlines[vlinecounter].descent;
+					vlinecounter++;
+					tokencounter = 0;
+				}
+				// generate token's geometry
+				for (const auto &span : token.spans) {
+					for (const auto &ch : span.text) {
 						auto info = fonts.glyphInfo(span.fontIndex, ch);
 						rects.quads.push_back(info.bounds.offset(x, y));
 						rects.crops.push_back(info.crop);
 						rects.colors.push_back(span.color);
 						x += info.xadvance;
 					}
-					tokencounter++;
 				}
+				tokencounter++;
 			}
 
 			// next line
@@ -176,6 +214,19 @@ int main(int argc, char *argv[])
 
 	// ...
 
+	TextBlock tb;
+	tb.append("The quick brown fox jumps over the lazy dog");
+	tb.newline();
+	tb.append("Testing line gap code");
+	tb.newline();
+	tb.append("... just ", { 1.0f,1.0f,1.0f,1.0f }, 2);
+	tb.append("Testing", { 1.0f, 0.3f, 0.8f, 1.0f }, 1);
+	tb.newline();
+	tb.append("Yatta!");
+	tb.newline();
+	tb.append("Isn't it amazing?", { 1.0f, 1.0f, 1.0f, 0.6f }, 3);
+	tb.newline();
+
 	ursa::set_framefunc([&](float deltaTime) {
 		ursa::clear({0.20f, 0.32f, 0.35f, 1.0f});
 		
@@ -197,17 +248,6 @@ int main(int argc, char *argv[])
 		ursa::transform_2d();
 
 		// TODO ursa::draw_text
-		TextBlock tb;
-		tb.append("The quick brown fox jumps over the lazy dog");
-		tb.newline();
-		tb.append("Testing line gap code");
-		tb.newline();
-		tb.append("... just ", {1.0f,1.0f,1.0f,1.0f}, 2);
-		tb.append("Testing", {1.0f, 0.3f, 0.8f, 1.0f}, 1);
-		tb.newline();
-		tb.append("Yatta!");
-		tb.newline();
-		tb.append("Isn't it amazing?", {1.0f, 1.0f, 1.0f, 0.6f}, 3);
 
 		auto textrect = ursa::Rect{ 32,32,100,400 };
 		RectList rects = tb.buildRects(fonts, textrect);
@@ -222,6 +262,12 @@ int main(int argc, char *argv[])
 
 	auto events = std::make_shared<ursa::EventHandler>();
 	ursa::set_eventhandler(events);
+
+	SDL_StartTextInput();
+	events->hook(SDL_TEXTINPUT, [&](void *e) {
+		auto *event = static_cast<SDL_TextInputEvent*>(e);
+		tb.append(event->text);
+	});
 
 	events->hook(SDL_KEYDOWN, [&](void *e) {
 		auto *event = static_cast<SDL_KeyboardEvent*>(e);
