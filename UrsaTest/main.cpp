@@ -164,6 +164,66 @@ private:
 	std::vector<textline> lines;
 };
 
+class EditLine {
+public:
+	void input(std::string text) {
+		line.insert(cursor, text);
+		cursor += text.length();
+	}
+	std::string contents() {
+		return line;
+	}
+	void clear() {
+		line.clear();
+		cursor = 0;
+	}
+	void offsetCursor(int offset) {
+		cursor = std::max(0, std::min(cursor+offset, (int)line.length()));
+	}
+	void deleteOffset(int offset) {
+		// when deleting backwards, move cursor first and delete forwards up to current position
+		if (offset < 0) {
+			int tmp = cursor;
+			offsetCursor(offset);
+			offset = tmp - cursor;
+		}
+		line.erase(cursor, offset);
+	}
+	// TODO horizontal scroll state, so it's possible to edit a line longer than window width
+	// TODO perhaps the line should be vertically centered inside the editing bounds
+	// TODO there should be an API for getting suggested height for the editline
+	RectList buildRects(const ursa::FontAtlas &fonts, int fontIndex, glm::vec4 color, ursa::Rect bounds, ursa::Rect *cursorRect) {
+		RectList rects;
+		float x{ bounds.pos.x }, y{ bounds.pos.y };
+		float cursorx{ x };
+
+		const auto &fontInfo = fonts.fontInfo(fontIndex);
+		y += fontInfo.ascent;
+
+		for (size_t i = 0; i < line.length(); i++) {
+			const auto &ch = line[i];
+			auto info = fonts.glyphInfo(fontIndex, ch);
+			rects.quads.push_back(info.bounds.offset(x, y));
+			rects.crops.push_back(info.crop);
+			rects.colors.push_back(color);
+			x += info.xadvance;
+			// rather than handling end-of-line case separately,
+			// just check if cursor is after the current glyph and leave the cursor=0 fall to default value
+			if (i+1 == cursor) {
+				cursorx = x;
+			}
+		}
+
+		// TODO hardcoded cursor width of 2 pixels is not necessarily a good thing
+		*cursorRect = {cursorx, bounds.pos.y, 2, fontInfo.ascent};
+
+		return rects;
+	}
+private:
+	int cursor{0};
+	std::string line;
+};
+
 int main(int argc, char *argv[])
 {
 	ursa::window(800, 600);
@@ -227,6 +287,8 @@ int main(int argc, char *argv[])
 	tb.append("Isn't it amazing?", { 1.0f, 1.0f, 1.0f, 0.6f }, 3);
 	tb.newline();
 
+	EditLine editline;
+
 	ursa::set_framefunc([&](float deltaTime) {
 		ursa::clear({0.20f, 0.32f, 0.35f, 1.0f});
 		
@@ -250,12 +312,21 @@ int main(int argc, char *argv[])
 		// TODO ursa::draw_text
 
 		auto textrect = ursa::Rect{ 32,32,100,400 };
-		RectList rects = tb.buildRects(fonts, textrect);
+		auto inputrect = ursa::Rect{ ursa::screenrect().size.x, 32 }.alignBottom(ursa::screenrect().bottom());
 
 		ursa::blend_enable();
 		ursa::draw_quad(textrect, { 0.0f,0.0f,0.0f,0.4f });
 		ursa::draw_quad(fonts.tex(), ursa::Rect(512, 512).alignRight(ursa::screenrect().right()), glm::vec4{0.5f, 0.5f, 1.0f, 0.5f});
+		RectList rects = tb.buildRects(fonts, textrect);
 		ursa::draw_quads(fonts.tex(), rects.quads.data(), rects.crops.data(), rects.colors.data(), rects.quads.size());
+
+		ursa::Rect cursor;
+		ursa::draw_quad(inputrect, { 0.0f,0.0f,0.0f,0.4f });
+		rects = editline.buildRects(fonts, 0, glm::vec4{ 1.0f,1.0f,1.0f,1.0f }, inputrect, &cursor);
+		ursa::draw_quads(fonts.tex(), rects.quads.data(), rects.crops.data(), rects.colors.data(), rects.quads.size());
+		// TODO make the cursor blink
+		ursa::draw_quad(cursor, {0.8f,0.8f,0.8f,0.8f});
+
 		ursa::blend_disable();
 
 	});
@@ -266,13 +337,33 @@ int main(int argc, char *argv[])
 	SDL_StartTextInput();
 	events->hook(SDL_TEXTINPUT, [&](void *e) {
 		auto *event = static_cast<SDL_TextInputEvent*>(e);
-		tb.append(event->text);
+		editline.input(event->text);
 	});
 
 	events->hook(SDL_KEYDOWN, [&](void *e) {
 		auto *event = static_cast<SDL_KeyboardEvent*>(e);
 		if (event->keysym.scancode == SDL_SCANCODE_ESCAPE) {
 			ursa::terminate();
+		}
+
+		switch (event->keysym.scancode) {
+		case SDL_SCANCODE_RETURN:
+			tb.append(editline.contents());
+			tb.newline();
+			editline.clear();
+			break;
+		case SDL_SCANCODE_LEFT:
+			editline.offsetCursor(-1);
+			break;
+		case SDL_SCANCODE_RIGHT:
+			editline.offsetCursor(+1);
+			break;
+		case SDL_SCANCODE_BACKSPACE:
+			editline.deleteOffset(-1);
+			break;
+		case SDL_SCANCODE_DELETE:
+			editline.deleteOffset(+1);
+			break;
 		}
 	});
 
