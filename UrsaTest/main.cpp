@@ -14,6 +14,12 @@ struct RectList {
 	std::vector<ursa::Rect> quads;
 	std::vector<ursa::Rect> crops;
 	std::vector<glm::vec4> colors;
+
+	void addRect(const ursa::Rect &rect, const ursa::Rect &crop, const glm::vec4 &color) {
+		quads.push_back(rect);
+		crops.push_back(crop);
+		colors.push_back(color);
+	}
 };
 
 class TextBlock {
@@ -36,7 +42,7 @@ public:
 		lines.clear();
 	}
 
-	void append(std::string text, glm::vec4 color = { 1.0f,1.0f,1.0f,1.0f }, int fontIndex = 0) {
+	void append(const std::string &text, const glm::vec4 &color = { 1.0f,1.0f,1.0f,1.0f }, int fontIndex = 0) {
 		if (lines.empty()) {
 			newline();
 		}
@@ -86,6 +92,12 @@ public:
 	void newline() {
 		lines.emplace_back();
 	}
+
+	void appendLine(const std::string &text, const glm::vec4 &color = { 1.0f,1.0f,1.0f,1.0f }, int fontIndex = 0) {
+		append(text, color, fontIndex);
+		newline();
+	}
+
 	RectList buildRects(const ursa::FontAtlas &fonts, ursa::Rect bounds) {
 		RectList rects;
 		float x{ bounds.pos.x }, y{ bounds.pos.y };
@@ -145,9 +157,7 @@ public:
 				for (const auto &span : token.spans) {
 					for (const auto &ch : span.text) {
 						auto info = fonts.glyphInfo(span.fontIndex, ch);
-						rects.quads.push_back(info.bounds.offset(x, y));
-						rects.crops.push_back(info.crop);
-						rects.colors.push_back(span.color);
+						rects.addRect(info.bounds.offset(x, y), info.crop, span.color);
 						x += info.xadvance;
 					}
 				}
@@ -178,6 +188,7 @@ public:
 		cursor = 0;
 	}
 	void offsetCursor(int offset) {
+		//cursor = std::clamp(cursor+offset, 0, (int)line.length());
 		cursor = std::max(0, std::min(cursor+offset, (int)line.length()));
 	}
 	void deleteOffset(int offset) {
@@ -203,9 +214,7 @@ public:
 		for (size_t i = 0; i < line.length(); i++) {
 			const auto &ch = line[i];
 			auto info = fonts.glyphInfo(fontIndex, ch);
-			rects.quads.push_back(info.bounds.offset(x, y));
-			rects.crops.push_back(info.crop);
-			rects.colors.push_back(color);
+			rects.addRect(info.bounds.offset(x, y), info.crop, color);
 			x += info.xadvance;
 			// rather than handling end-of-line case separately,
 			// just check if cursor is after the current glyph and leave the cursor=0 fall to default value
@@ -223,6 +232,25 @@ private:
 	int cursor{0};
 	std::string line;
 };
+
+// unified text editing handler to make it easier to add line editing features later
+bool editline_keydown_handler(EditLine *editline, SDL_KeyboardEvent *event) {
+	switch (event->keysym.scancode) {
+	case SDL_SCANCODE_LEFT:
+		editline->offsetCursor(-1);
+		return true;
+	case SDL_SCANCODE_RIGHT:
+		editline->offsetCursor(+1);
+		return true;
+	case SDL_SCANCODE_BACKSPACE:
+		editline->deleteOffset(-1);
+		return true;
+	case SDL_SCANCODE_DELETE:
+		editline->deleteOffset(+1);
+		return true;
+	}
+	return false;
+}
 
 int main(int argc, char *argv[])
 {
@@ -272,20 +300,13 @@ int main(int argc, char *argv[])
 	fonts.add_truetype(R"(c:\windows\fonts\comic.ttf)", 24.0f);
 	fonts.bake(512, 512);
 
-	// ...
-
 	TextBlock tb;
-	tb.append("The quick brown fox jumps over the lazy dog");
-	tb.newline();
-	tb.append("Testing line gap code");
-	tb.newline();
+	tb.appendLine("The quick brown fox jumps over the lazy dog");
+	tb.appendLine("Testing line gap code");
 	tb.append("... just ", { 1.0f,1.0f,1.0f,1.0f }, 2);
-	tb.append("Testing", { 1.0f, 0.3f, 0.8f, 1.0f }, 1);
-	tb.newline();
-	tb.append("Yatta!");
-	tb.newline();
-	tb.append("Isn't it amazing?", { 1.0f, 1.0f, 1.0f, 0.6f }, 3);
-	tb.newline();
+	tb.appendLine("Testing", { 1.0f, 0.3f, 0.8f, 1.0f }, 1);
+	tb.appendLine("Yatta!");
+	tb.appendLine("Isn't it amazing?", { 1.0f, 1.0f, 1.0f, 0.6f }, 3);
 
 	EditLine editline;
 
@@ -345,25 +366,11 @@ int main(int argc, char *argv[])
 		if (event->keysym.scancode == SDL_SCANCODE_ESCAPE) {
 			ursa::terminate();
 		}
+		editline_keydown_handler(&editline, event);
 
-		switch (event->keysym.scancode) {
-		case SDL_SCANCODE_RETURN:
-			tb.append(editline.contents());
-			tb.newline();
+		if (event->keysym.scancode == SDL_SCANCODE_RETURN) {
+			tb.appendLine(editline.contents());
 			editline.clear();
-			break;
-		case SDL_SCANCODE_LEFT:
-			editline.offsetCursor(-1);
-			break;
-		case SDL_SCANCODE_RIGHT:
-			editline.offsetCursor(+1);
-			break;
-		case SDL_SCANCODE_BACKSPACE:
-			editline.deleteOffset(-1);
-			break;
-		case SDL_SCANCODE_DELETE:
-			editline.deleteOffset(+1);
-			break;
 		}
 	});
 
