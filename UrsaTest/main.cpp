@@ -180,16 +180,22 @@ public:
 		line.insert(cursor, text);
 		cursor += text.length();
 	}
-	std::string contents() {
+	std::string contents() const {
 		return line;
+	}
+	size_t length() const {
+		return line.length();
 	}
 	void clear() {
 		line.clear();
 		cursor = 0;
 	}
+	void setCursor(int pos) {
+		//cursor = std::clamp(pos, 0, (int)length());
+		cursor = std::max(0, std::min(pos, (int)length()));
+	}
 	void offsetCursor(int offset) {
-		//cursor = std::clamp(cursor+offset, 0, (int)line.length());
-		cursor = std::max(0, std::min(cursor+offset, (int)line.length()));
+		setCursor(cursor + offset);
 	}
 	void deleteOffset(int offset) {
 		// when deleting backwards, move cursor first and delete forwards up to current position
@@ -234,6 +240,7 @@ private:
 };
 
 // unified text editing handler to make it easier to add line editing features later
+// TODO actually, we need keyup handler too and something to hold a state, to handle ctrl-a etc
 bool editline_keydown_handler(EditLine *editline, SDL_KeyboardEvent *event) {
 	switch (event->keysym.scancode) {
 	case SDL_SCANCODE_LEFT:
@@ -241,6 +248,12 @@ bool editline_keydown_handler(EditLine *editline, SDL_KeyboardEvent *event) {
 		return true;
 	case SDL_SCANCODE_RIGHT:
 		editline->offsetCursor(+1);
+		return true;
+	case SDL_SCANCODE_HOME:
+		editline->setCursor(0);
+		return true;
+	case SDL_SCANCODE_END:
+		editline->setCursor(editline->length());
 		return true;
 	case SDL_SCANCODE_BACKSPACE:
 		editline->deleteOffset(-1);
