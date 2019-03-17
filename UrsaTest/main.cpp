@@ -239,19 +239,57 @@ private:
 	std::string line;
 };
 
+struct KeydownEvent {
+	SDL_Scancode scancode;
+	SDL_Keymod mod;
+
+	bool shift() const { return mod & KMOD_SHIFT; }
+	bool ctrl() const { return mod & KMOD_CTRL; }
+	bool alt() const { return mod & KMOD_ALT; }
+};
+
+void keymod_update(SDL_Keymod *keymod, SDL_KeyboardEvent *e) {
+	SDL_Keymod update = KMOD_NONE;
+	switch (e->keysym.scancode) {
+	case SDL_SCANCODE_LSHIFT: update = KMOD_LSHIFT; break;
+	case SDL_SCANCODE_RSHIFT: update = KMOD_RSHIFT; break;
+	case SDL_SCANCODE_LCTRL: update = KMOD_LCTRL; break;
+	case SDL_SCANCODE_RCTRL: update = KMOD_RCTRL; break;
+	case SDL_SCANCODE_LALT: update = KMOD_LALT; break;
+	case SDL_SCANCODE_RALT: update = KMOD_RALT; break;
+	default:
+		return;
+	}
+
+	switch (e->type) {
+	case SDL_KEYDOWN:
+		*keymod = (SDL_Keymod)(*keymod | update); break;
+	case SDL_KEYUP:
+		*keymod = (SDL_Keymod)(*keymod & ~update); break;
+	}
+}
+
 // unified text editing handler to make it easier to add line editing features later
-// TODO actually, we need keyup handler too and something to hold a state, to handle ctrl-a etc
-bool editline_keydown_handler(EditLine *editline, SDL_KeyboardEvent *event) {
-	switch (event->keysym.scancode) {
+// TODO would it be better to have some keybind system for this stuff?
+bool editline_keydown_handler(EditLine *editline, const KeydownEvent &event) {
+	switch (event.scancode) {
 	case SDL_SCANCODE_LEFT:
 		editline->offsetCursor(-1);
 		return true;
 	case SDL_SCANCODE_RIGHT:
 		editline->offsetCursor(+1);
 		return true;
+	case SDL_SCANCODE_A:
+		if (!event.ctrl())
+			return false;
+		/* fallthrough */
 	case SDL_SCANCODE_HOME:
 		editline->setCursor(0);
 		return true;
+	case SDL_SCANCODE_E:
+		if (!event.ctrl())
+			return false;
+		/* fallthrough */
 	case SDL_SCANCODE_END:
 		editline->setCursor(editline->length());
 		return true;
@@ -260,7 +298,7 @@ bool editline_keydown_handler(EditLine *editline, SDL_KeyboardEvent *event) {
 		return true;
 	case SDL_SCANCODE_DELETE:
 		editline->deleteOffset(+1);
-		return true;
+		return true;	
 	}
 	return false;
 }
@@ -374,12 +412,22 @@ int main(int argc, char *argv[])
 		editline.input(event->text);
 	});
 
+	SDL_Keymod keymod = KMOD_NONE;
+
+	events->hook(SDL_KEYUP, [&](void *e) {
+		auto *event = static_cast<SDL_KeyboardEvent*>(e);
+		keymod_update(&keymod, event);
+	});
 	events->hook(SDL_KEYDOWN, [&](void *e) {
 		auto *event = static_cast<SDL_KeyboardEvent*>(e);
 		if (event->keysym.scancode == SDL_SCANCODE_ESCAPE) {
 			ursa::terminate();
 		}
-		editline_keydown_handler(&editline, event);
+
+		keymod_update(&keymod, event);
+
+		KeydownEvent kevent{ event->keysym.scancode, keymod};
+		editline_keydown_handler(&editline, kevent);
 
 		if (event->keysym.scancode == SDL_SCANCODE_RETURN) {
 			tb.appendLine(editline.contents());
