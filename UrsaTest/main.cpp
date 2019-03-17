@@ -381,8 +381,6 @@ int main(int argc, char *argv[])
 
 		ursa::transform_2d();
 
-		// TODO ursa::draw_text
-
 		auto textrect = ursa::Rect{ 32,32,100,400 };
 		auto inputrect = ursa::Rect{ ursa::screenrect().size.x, 32 }.alignBottom(ursa::screenrect().bottom());
 
@@ -398,6 +396,8 @@ int main(int argc, char *argv[])
 		ursa::draw_quads(fonts.tex(), rects.quads.data(), rects.crops.data(), rects.colors.data(), rects.quads.size());
 		// TODO make the cursor blink
 		ursa::draw_quad(cursor, {0.8f,0.8f,0.8f,0.8f});
+
+		ursa::draw_text(fonts,2, 2,2, "Ursa testapp");
 
 		ursa::blend_disable();
 

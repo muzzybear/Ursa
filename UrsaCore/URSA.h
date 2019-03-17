@@ -134,6 +134,8 @@ namespace ursa {
 
 	void draw_9patch(TextureHandle tex, Rect rect, int margin, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
 
+	void draw_text(const FontAtlas &fonts, int fontIndex, float x, float y, const char *text, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
+
 	void window(int width, int height);
 	void set_framefunc(std::function<void(float)> framefunc);
 

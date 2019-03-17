@@ -548,6 +548,25 @@ void main()
 		}
 	}
 
+	void draw_text(const FontAtlas &fonts, int fontIndex, float x, float y, const char *text, glm::vec4 color)
+	{
+		const auto &fontInfo = fonts.fontInfo(fontIndex);
+		y += fontInfo.ascent;
+
+		std::vector<Rect> rects;
+		std::vector<Rect> crops;
+		std::vector<glm::vec4> colors;
+
+		for (const char *p = text; *p; p++) {
+			auto info = fonts.glyphInfo(fontIndex, *p);
+			rects.push_back(info.bounds.offset(x, y));
+			crops.push_back(info.crop);
+			colors.push_back(color);
+			x += info.xadvance;
+		}
+
+		draw_quads(fonts.tex(), rects.data(), crops.data(), colors.data(), rects.size());
+	}
 
 	// ...
 
