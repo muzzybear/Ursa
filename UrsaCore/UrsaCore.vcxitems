@@ -15,8 +15,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)URSA.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)URSA\gui.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(MSBuildThisFileDirectory)URSA.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)URSA\gui.cpp" />
   </ItemGroup>
 </Project>

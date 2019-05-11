@@ -3,6 +3,7 @@
 #include <glad/glad.h>
 
 #include "URSA.h"
+#include "URSA/gui.h"
 
 #include <vector>
 #include <algorithm>
@@ -98,7 +99,7 @@ public:
 		newline();
 	}
 
-	RectList buildRects(const ursa::FontAtlas &fonts, ursa::Rect bounds) {
+	RectList buildRects(ursa::FontAtlas::object_ref fonts, ursa::Rect bounds) {
 		RectList rects;
 		float x{ bounds.pos.x }, y{ bounds.pos.y };
 		for (const auto &line : lines) {
@@ -113,10 +114,10 @@ public:
 			for (const auto &token : line.tokens) {
 				float tokenWidth = 0;
 				for (const auto &span : token.spans) {
-					const auto &fontInfo = fonts.fontInfo(span.fontIndex);
+					const auto &fontInfo = fonts->fontInfo(span.fontIndex);
 					// FIXME using xadvance isn't entirely accurate
 					for (const auto &ch : span.text) {
-						auto info = fonts.glyphInfo(span.fontIndex, ch);
+						auto info = fonts->glyphInfo(span.fontIndex, ch);
 						tokenWidth += info.xadvance;
 					}
 				}
@@ -131,7 +132,7 @@ public:
 				// update current vline metrics based on token's sub-span metrics
 				auto &vline = vlines.back();
 				for (const auto &span : token.spans) {
-					const auto &fontInfo = fonts.fontInfo(span.fontIndex);
+					const auto &fontInfo = fonts->fontInfo(span.fontIndex);
 					vline.gap = std::max(vline.gap, fontInfo.linegap);
 					vline.baseline = std::max(vline.baseline, fontInfo.ascent);
 					vline.descent = std::min(vline.descent, fontInfo.descent);
@@ -156,7 +157,7 @@ public:
 				// generate token's geometry
 				for (const auto &span : token.spans) {
 					for (const auto &ch : span.text) {
-						auto info = fonts.glyphInfo(span.fontIndex, ch);
+						auto info = fonts->glyphInfo(span.fontIndex, ch);
 						rects.addRect(info.bounds.offset(x, y), info.crop, span.color);
 						x += info.xadvance;
 					}
@@ -209,17 +210,17 @@ public:
 	// TODO horizontal scroll state, so it's possible to edit a line longer than window width
 	// TODO perhaps the line should be vertically centered inside the editing bounds
 	// TODO there should be an API for getting suggested height for the editline
-	RectList buildRects(const ursa::FontAtlas &fonts, int fontIndex, glm::vec4 color, ursa::Rect bounds, ursa::Rect *cursorRect) {
+	RectList buildRects(ursa::FontAtlas::object_ref fonts, int fontIndex, glm::vec4 color, ursa::Rect bounds, ursa::Rect *cursorRect) {
 		RectList rects;
 		float x{ bounds.pos.x }, y{ bounds.pos.y };
 		float cursorx{ x };
 
-		const auto &fontInfo = fonts.fontInfo(fontIndex);
+		const auto &fontInfo = fonts->fontInfo(fontIndex);
 		y += fontInfo.ascent;
 
 		for (size_t i = 0; i < line.length(); i++) {
 			const auto &ch = line[i];
-			auto info = fonts.glyphInfo(fontIndex, ch);
+			auto info = fonts->glyphInfo(fontIndex, ch);
 			rects.addRect(info.bounds.offset(x, y), info.crop, color);
 			x += info.xadvance;
 			// rather than handling end-of-line case separately,
@@ -346,10 +347,10 @@ int main(int argc, char *argv[])
 	float angle = 0.0f;
 
 	auto fonts = ursa::font_atlas();
-	fonts.add_truetype(R"(c:\windows\fonts\arialbd.ttf)", { 18.0f, 36.0f });
-	fonts.add_truetype(R"(c:\windows\fonts\arial.ttf)", 18.0f);
-	fonts.add_truetype(R"(c:\windows\fonts\comic.ttf)", 24.0f);
-	fonts.bake(512, 512);
+	fonts->add_truetype(R"(c:\windows\fonts\arialbd.ttf)", { 18.0f, 36.0f });
+	fonts->add_truetype(R"(c:\windows\fonts\arial.ttf)", 18.0f);
+	fonts->add_truetype(R"(c:\windows\fonts\comic.ttf)", 24.0f);
+	fonts->bake(512, 512);
 
 	TextBlock tb;
 	tb.appendLine("The quick brown fox jumps over the lazy dog");
@@ -360,6 +361,8 @@ int main(int argc, char *argv[])
 	tb.appendLine("Isn't it amazing?", { 1.0f, 1.0f, 1.0f, 0.6f }, 3);
 
 	EditLine editline;
+
+	ursa::gui::set_default_font(fonts, 2);
 
 	ursa::set_framefunc([&](float deltaTime) {
 		ursa::clear({0.20f, 0.32f, 0.35f, 1.0f});
@@ -386,18 +389,30 @@ int main(int argc, char *argv[])
 
 		ursa::blend_enable();
 		ursa::draw_quad(textrect, { 0.0f,0.0f,0.0f,0.4f });
-		ursa::draw_quad(fonts.tex(), ursa::Rect(512, 512).alignRight(ursa::screenrect().right()), glm::vec4{0.5f, 0.5f, 1.0f, 0.5f});
+		ursa::draw_quad(fonts->tex(), ursa::Rect(512, 512).alignRight(ursa::screenrect().right()), glm::vec4{0.5f, 0.5f, 1.0f, 0.5f});
 		RectList rects = tb.buildRects(fonts, textrect);
-		ursa::draw_quads(fonts.tex(), rects.quads.data(), rects.crops.data(), rects.colors.data(), rects.quads.size());
+		ursa::draw_quads(fonts->tex(), rects.quads.data(), rects.crops.data(), rects.colors.data(), rects.quads.size());
 
 		ursa::Rect cursor;
 		ursa::draw_quad(inputrect, { 0.0f,0.0f,0.0f,0.4f });
 		rects = editline.buildRects(fonts, 0, glm::vec4{ 1.0f,1.0f,1.0f,1.0f }, inputrect, &cursor);
-		ursa::draw_quads(fonts.tex(), rects.quads.data(), rects.crops.data(), rects.colors.data(), rects.quads.size());
+		ursa::draw_quads(fonts->tex(), rects.quads.data(), rects.crops.data(), rects.colors.data(), rects.quads.size());
 		// TODO make the cursor blink
 		ursa::draw_quad(cursor, {0.8f,0.8f,0.8f,0.8f});
 
 		ursa::draw_text(fonts,2, 2,2, "Ursa testapp");
+
+		ursa::gui::frame_begin();
+		ursa::gui::panel_begin(ursa::gui::PanelEdge::right, 200);
+		ursa::gui::background(glm::vec4{0.5,0.5,0.5, 0.8f});
+		ursa::gui::padding(4);
+		ursa::gui::text("Just testing");
+		static bool tmp = false;
+		ursa::gui::checkbox("foo", &tmp);
+		if (ursa::gui::button(tmp ? "Turn off" : "Turn on"))
+			tmp = !tmp;
+		ursa::gui::panel_end();
+		ursa::gui::frame_end();
 
 		ursa::blend_disable();
 
@@ -413,6 +428,15 @@ int main(int argc, char *argv[])
 	});
 
 	SDL_Keymod keymod = KMOD_NONE;
+
+	events->hook(SDL_MOUSEBUTTONDOWN, [&](void *e) {
+		auto *event = static_cast<SDL_MouseButtonEvent*>(e);
+		ursa::gui::handle_mousedown({ event->x, event->y });
+	});
+	events->hook(SDL_MOUSEBUTTONUP, [&](void *e) {
+		auto *event = static_cast<SDL_MouseButtonEvent*>(e);
+		ursa::gui::handle_mouseup({ event->x, event->y });
+	});
 
 	events->hook(SDL_KEYUP, [&](void *e) {
 		auto *event = static_cast<SDL_KeyboardEvent*>(e);

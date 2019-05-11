@@ -326,6 +326,7 @@ void main()
 		}
 
 		FontAtlas::FontInfo fontInfo(int fontIndex) const {
+			assert(fontIndex >= 0 && (unsigned)fontIndex < m_chardatas.size());
 			return m_chardatas[fontIndex].fontinfo;
 		}
 	private:
@@ -358,7 +359,9 @@ void main()
 	FontAtlas::GlyphInfo FontAtlas::glyphInfo(int fontIndex, int codepoint) const { return impl->glyphInfo(fontIndex, codepoint); }
 	FontAtlas::FontInfo FontAtlas::fontInfo(int fontIndex) const { return impl->fontInfo(fontIndex);  }
 
-	FontAtlas font_atlas() { return {}; }
+	ObjectRef<FontAtlas> font_atlas() { return FontAtlas::create_instance(); }
+
+	std::vector<FontAtlas> FontAtlas::s_instances;
 
 	// ...
 
@@ -548,9 +551,9 @@ void main()
 		}
 	}
 
-	void draw_text(const FontAtlas &fonts, int fontIndex, float x, float y, const char *text, glm::vec4 color)
+	void draw_text(FontAtlas::object_ref fonts, int fontIndex, float x, float y, const char *text, glm::vec4 color)
 	{
-		const auto &fontInfo = fonts.fontInfo(fontIndex);
+		const auto &fontInfo = fonts->fontInfo(fontIndex);
 		y += fontInfo.ascent;
 
 		std::vector<Rect> rects;
@@ -558,14 +561,14 @@ void main()
 		std::vector<glm::vec4> colors;
 
 		for (const char *p = text; *p; p++) {
-			auto info = fonts.glyphInfo(fontIndex, *p);
+			auto info = fonts->glyphInfo(fontIndex, *p);
 			rects.push_back(info.bounds.offset(x, y));
 			crops.push_back(info.crop);
 			colors.push_back(color);
 			x += info.xadvance;
 		}
 
-		draw_quads(fonts.tex(), rects.data(), crops.data(), colors.data(), rects.size());
+		draw_quads(fonts->tex(), rects.data(), crops.data(), colors.data(), rects.size());
 	}
 
 	// ...

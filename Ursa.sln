@@ -11,12 +11,15 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FontTest", "FontTest\FontTe
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MeshTest", "MeshTest\MeshTest.vcxproj", "{C53132F7-1796-48CF-84DB-F7E242C521C6}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AudioTest", "AudioTest\AudioTest.vcxproj", "{D1B34238-0FD1-48A4-81CE-C8BF88B86125}"
+EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		UrsaCore\UrsaCore.vcxitems*{58c76ce5-05a7-48fe-82d9-db9c8c72b7d5}*SharedItemsImports = 4
 		UrsaCore\UrsaCore.vcxitems*{6037ee36-696b-47b5-8650-5c35b3e8d015}*SharedItemsImports = 9
 		UrsaCore\UrsaCore.vcxitems*{92e62529-6217-47e7-a75c-6b592445d8c8}*SharedItemsImports = 4
 		UrsaCore\UrsaCore.vcxitems*{c53132f7-1796-48cf-84db-f7e242c521c6}*SharedItemsImports = 4
+		UrsaCore\UrsaCore.vcxitems*{d1b34238-0fd1-48a4-81ce-c8bf88b86125}*SharedItemsImports = 4
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -49,6 +52,14 @@ Global
 		{C53132F7-1796-48CF-84DB-F7E242C521C6}.Release|x64.Build.0 = Release|x64
 		{C53132F7-1796-48CF-84DB-F7E242C521C6}.Release|x86.ActiveCfg = Release|Win32
 		{C53132F7-1796-48CF-84DB-F7E242C521C6}.Release|x86.Build.0 = Release|Win32
+		{D1B34238-0FD1-48A4-81CE-C8BF88B86125}.Debug|x64.ActiveCfg = Debug|x64
+		{D1B34238-0FD1-48A4-81CE-C8BF88B86125}.Debug|x64.Build.0 = Debug|x64
+		{D1B34238-0FD1-48A4-81CE-C8BF88B86125}.Debug|x86.ActiveCfg = Debug|Win32
+		{D1B34238-0FD1-48A4-81CE-C8BF88B86125}.Debug|x86.Build.0 = Debug|Win32
+		{D1B34238-0FD1-48A4-81CE-C8BF88B86125}.Release|x64.ActiveCfg = Release|x64
+		{D1B34238-0FD1-48A4-81CE-C8BF88B86125}.Release|x64.Build.0 = Release|x64
+		{D1B34238-0FD1-48A4-81CE-C8BF88B86125}.Release|x86.ActiveCfg = Release|Win32
+		{D1B34238-0FD1-48A4-81CE-C8BF88B86125}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -2,6 +2,8 @@
 
 #include <functional>
 #include <memory>
+#include <tuple>
+#include <vector>
 
 #include <glm/glm.hpp>
 
@@ -31,6 +33,10 @@ namespace ursa {
 		Rect offset(glm::vec2 offset) { return { pos + offset, size }; }
 		Rect offset(float x, float y) { return offset({ x,y }); }
 
+		// no test is done to check whether offset falls within the rect size
+		std::tuple<Rect, Rect> splitX(float offset) { return { {pos.x, pos.y, offset, size.y}, {pos.x+offset, pos.y, size.x-offset, size.y} }; }
+		std::tuple<Rect, Rect> splitY(float offset) { return { {pos.x, pos.y, size.x, offset}, {pos.x, pos.y+offset, size.x, size.y-offset} }; }
+
 		Rect pixelAlign() { return { {floor(pos.x+0.5f), floor(pos.y+0.5f)} , size }; }
 
 		Rect alignRight(float x) { return { {x-size.x, pos.y}, size }; }
@@ -43,6 +49,8 @@ namespace ursa {
 		Rect(float x, float y, float width, float height) : pos(x, y), size(width, height) {}
 
 		Rect operator*(const glm::vec2 &scale) { return { pos*scale, size*scale }; }
+
+		bool contains(const glm::vec2 &point) { return (point.x > pos.x) && (point.x < pos.x + size.x) && (point.y > pos.y) && (point.y < pos.y+size.y); }
 	};
 
 	struct TextureHandle {
@@ -60,7 +68,40 @@ namespace ursa {
 		Rect bounds() { return Rect((float)width, (float)height); }
 	};
 
-	class FontAtlas {
+	// managed object system for objects that are never unallocated during runtime
+
+	template<typename T> struct ObjectRef {
+		short id;
+		inline T* ref() const { return T::get_instance(id);	}
+
+		inline T& operator*() const { return *ref(); }
+		inline T* operator->() const noexcept { return ref(); }
+
+		// TODO operator=
+	};
+
+	template<typename T> class Object {
+	public:
+		using object_ref = ObjectRef<T>;
+
+		short get_id() const {
+			return this - s_instances.data();
+		}
+
+		static T* get_instance(short id) {
+			return &s_instances[id];
+		}
+
+		template<class... Args>
+		static object_ref create_instance(Args&&... args) {
+			s_instances.emplace_back(std::forward<Args>(args)...);
+			return { static_cast<short>(s_instances.size() - 1) };
+		}
+	private:
+		static std::vector<T> s_instances;
+	};
+
+	class FontAtlas : public Object<FontAtlas> {
 	public:
 		struct GlyphInfo {
 			Rect crop;
@@ -73,13 +114,6 @@ namespace ursa {
 			float descent;
 			float linegap;
 		};
-
-		FontAtlas();
-		FontAtlas(const FontAtlas & other);
-		FontAtlas(FontAtlas && other);
-		FontAtlas& operator=(const FontAtlas & other);
-		FontAtlas& operator=(FontAtlas && other);
-		~FontAtlas();
 		
 		void add_truetype(const char *filename, float font_size);
 		void add_truetype(const char *filename, std::initializer_list<float> font_sizes);
@@ -89,6 +123,15 @@ namespace ursa {
 		TextureHandle tex() const;
 		GlyphInfo glyphInfo(int fontIndex, int codepoint) const;
 		FontInfo fontInfo(int fontIndex) const;
+
+		// don't construct directly, can't be made private because needs to work inside vector
+		FontAtlas();
+		FontAtlas(const FontAtlas & other);
+		FontAtlas(FontAtlas && other);
+		FontAtlas& operator=(const FontAtlas & other);
+		FontAtlas& operator=(FontAtlas && other);
+		~FontAtlas();
+
 	private:
 		std::unique_ptr<class FontAtlasImpl> impl;
 	};
@@ -109,7 +152,7 @@ namespace ursa {
 	TextureHandle texture(int width, int height, const void *data);
 	TextureHandle texture8bpp(int width, int height, const void *data);
 
-	FontAtlas font_atlas();
+	ObjectRef<FontAtlas> font_atlas();
 
 	Rect screenrect();
 
@@ -134,7 +177,7 @@ namespace ursa {
 
 	void draw_9patch(TextureHandle tex, Rect rect, int margin, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
 
-	void draw_text(const FontAtlas &fonts, int fontIndex, float x, float y, const char *text, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
+	void draw_text(FontAtlas::object_ref fonts, int fontIndex, float x, float y, const char *text, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
 
 	void window(int width, int height);
 	void set_framefunc(std::function<void(float)> framefunc);
