@@ -23,8 +23,11 @@ namespace ursa { namespace gui {
 			float margin;
 		};
 		struct Transparent {};
+		struct Custom {
+			std::function<void(void)> render;
+		};
 
-		std::variant<SolidColor, Textured, Ninepatch, Transparent> background;
+		std::variant<SolidColor, Textured, Ninepatch, Transparent, Custom> background;
 
 		struct Text {
 			glm::vec4 color;
@@ -68,8 +71,10 @@ namespace ursa { namespace gui {
 	void panel_end();
 
 	void padding(float px);
+	void space(float px);
 
 	void background(const glm::vec4 &color);
+	void border(const glm::vec4 &color, float width);
 
 	bool button(std::string str);
 	void text(std::string str);

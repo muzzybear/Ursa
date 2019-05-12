@@ -58,18 +58,29 @@ namespace ursa { namespace gui {
 
 	// ...
 
-	void draw_background() {
+	const Style& get_style() {
 		// TODO get best matching style
 		// for now, will only match against top of the stack, later support dialog.button and maybe dialog>button etc...
-		const Style &style = state.styles["default"];
+		const auto it = state.styles.find(state.styleStack.top());
+		if (it != state.styles.end()) {
+			return it->second;
+		}
+		return state.styles["default"];
+	}
+
+	void draw_background() {
+		const Style &style = get_style();
 
 		if (const auto bg = std::get_if<Style::SolidColor>(&style.background)) {
 			background(bg->color);
-		} else if (const auto bg = std::get_if<Style::Textured>(&style.background)) {
+		}
+		else if (const auto bg = std::get_if<Style::Textured>(&style.background)) {
 			// TODO draw texture
 			background(bg->color);
 		}
-
+		else if (const auto bg = std::get_if<Style::Custom>(&style.background)) {
+			bg->render();
+		}
 	}
 
 	void draw_string(std::string str) {
@@ -155,9 +166,26 @@ namespace ursa { namespace gui {
 		state.viewportStack.push(inner);
 	}
 
+	void space(float px) {
+		Rect bottom = std::get<1>(state.viewportStack.top().splitY(px));
+		state.viewportStack.pop();
+		state.viewportStack.push(bottom);
+	}
+
 	void background(const glm::vec4 &color) {
 		draw_quad(state.viewportStack.top(), color);
 	}
+
+	void border(const glm::vec4 &color, float width) {
+		Rect r = state.viewportStack.top();
+
+		draw_quad({ r.left(), r.top(), r.size.x, width }, color);
+		draw_quad({ r.left(), r.bottom()-width, r.size.x, width }, color);
+
+		draw_quad({ r.left(), r.top()+width, width, r.size.y - width*2 }, color);
+		draw_quad({ r.right()-width, r.top()+width, width, r.size.y - width*2 }, color);
+	}
+
 
 	bool mouseover() { return state.viewportStack.top().contains(state.mousePosition); }
 

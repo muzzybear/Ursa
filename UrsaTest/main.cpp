@@ -363,6 +363,31 @@ int main(int argc, char *argv[])
 	EditLine editline;
 
 	ursa::gui::set_default_font(fonts, 2);
+	ursa::gui::set_style("button", {
+		ursa::gui::Style::Custom{ [&]() {
+			ursa::gui::background({0,0,0,1});
+			ursa::gui::border({1,1,1,1}, 1);
+		}},
+		{ {1,1,1,1} },
+		});
+	ursa::gui::set_style("checkbox_false", {
+		ursa::gui::Style::Custom{ [&]() {
+			ursa::gui::padding(4);
+			ursa::gui::background({0,0,0,1});
+			ursa::gui::border({1,1,1,1}, 1);
+		}},
+		{ {1,1,1,1} },
+		});
+	ursa::gui::set_style("checkbox_true", {
+		ursa::gui::Style::Custom{ [&]() {
+			ursa::gui::padding(4);
+			ursa::gui::background({0,0,0,1});
+			ursa::gui::border({1,1,1,1}, 1);
+			ursa::gui::padding(4);
+			ursa::gui::background({ 1,1,1,1 });
+	}},
+		{ {1,1,1,1} },
+		});
 
 	ursa::set_framefunc([&](float deltaTime) {
 		ursa::clear({0.20f, 0.32f, 0.35f, 1.0f});
@@ -409,6 +434,7 @@ int main(int argc, char *argv[])
 		ursa::gui::text("Just testing");
 		static bool tmp = false;
 		ursa::gui::checkbox("foo", &tmp);
+		ursa::gui::space(2);
 		if (ursa::gui::button(tmp ? "Turn off" : "Turn on"))
 			tmp = !tmp;
 		ursa::gui::panel_end();
