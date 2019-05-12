@@ -43,7 +43,7 @@ struct Glyph {
 
 void render_glyph(Glyph *glyph, ursa::Rect outrect, float baseThickness, bool lines, bool fill) {
 	if (lines)
-		ursa::draw_quad(outrect, { 0.45f,0.45f,0.45f,1.0f });
+		ursa::draw_rect(outrect, { 0.45f,0.45f,0.45f,1.0f });
 
 	std::vector<ursa::Vertex> verts;
 	std::vector<ursa::Vertex> fillverts;

@@ -168,12 +168,12 @@ namespace ursa {
 	void draw_points(Vertex vertices[], int count);
 	void draw_lines(Vertex vertices[], int count);
 
-	void draw_quad(Rect rect, glm::vec4 color = {1.0f, 1.0f, 1.0f, 1.0f});
-	void draw_quad(TextureHandle tex, Rect rect, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
-	void draw_quad(TextureHandle tex, Rect rect, Rect crop, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
+	void draw_rect(Rect rect, glm::vec4 color = {1.0f, 1.0f, 1.0f, 1.0f});
+	void draw_rect(TextureHandle tex, Rect rect, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
+	void draw_rect(TextureHandle tex, Rect rect, Rect crop, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
 
-	void draw_quads(TextureHandle tex, Rect rects[], Rect crops[], int count);
-	void draw_quads(TextureHandle tex, Rect rects[], Rect crops[], glm::vec4 colors[], int count);
+	void draw_rects(TextureHandle tex, Rect rects[], Rect crops[], int count);
+	void draw_rects(TextureHandle tex, Rect rects[], Rect crops[], glm::vec4 colors[], int count);
 
 	void draw_9patch(TextureHandle tex, Rect rect, int margin, glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f });
 

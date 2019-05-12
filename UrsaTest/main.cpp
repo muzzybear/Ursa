@@ -12,12 +12,12 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 struct RectList {
-	std::vector<ursa::Rect> quads;
+	std::vector<ursa::Rect> rects;
 	std::vector<ursa::Rect> crops;
 	std::vector<glm::vec4> colors;
 
 	void addRect(const ursa::Rect &rect, const ursa::Rect &crop, const glm::vec4 &color) {
-		quads.push_back(rect);
+		rects.push_back(rect);
 		crops.push_back(crop);
 		colors.push_back(color);
 	}
@@ -399,7 +399,7 @@ int main(int argc, char *argv[])
 		ursa::Rect r2 = ursa::Rect(400,200).centerAt(r.center());
 		ursa::Rect r3 = r2.expand(8);
 		ursa::draw_9patch(paneltex, r3, 8);
-		ursa::draw_quad(tex, r2);
+		ursa::draw_rect(tex, r2);
 
 		angle += deltaTime * 0.05f;
 		auto transform = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -413,17 +413,17 @@ int main(int argc, char *argv[])
 		auto inputrect = ursa::Rect{ ursa::screenrect().size.x, 32 }.alignBottom(ursa::screenrect().bottom());
 
 		ursa::blend_enable();
-		ursa::draw_quad(textrect, { 0.0f,0.0f,0.0f,0.4f });
-		ursa::draw_quad(fonts->tex(), ursa::Rect(512, 512).alignRight(ursa::screenrect().right()), glm::vec4{0.5f, 0.5f, 1.0f, 0.5f});
+		ursa::draw_rect(textrect, { 0.0f,0.0f,0.0f,0.4f });
+		ursa::draw_rect(fonts->tex(), ursa::Rect(512, 512).alignRight(ursa::screenrect().right()), glm::vec4{0.5f, 0.5f, 1.0f, 0.5f});
 		RectList rects = tb.buildRects(fonts, textrect);
-		ursa::draw_quads(fonts->tex(), rects.quads.data(), rects.crops.data(), rects.colors.data(), rects.quads.size());
+		ursa::draw_rects(fonts->tex(), rects.rects.data(), rects.crops.data(), rects.colors.data(), rects.rects.size());
 
 		ursa::Rect cursor;
-		ursa::draw_quad(inputrect, { 0.0f,0.0f,0.0f,0.4f });
+		ursa::draw_rect(inputrect, { 0.0f,0.0f,0.0f,0.4f });
 		rects = editline.buildRects(fonts, 0, glm::vec4{ 1.0f,1.0f,1.0f,1.0f }, inputrect, &cursor);
-		ursa::draw_quads(fonts->tex(), rects.quads.data(), rects.crops.data(), rects.colors.data(), rects.quads.size());
+		ursa::draw_rects(fonts->tex(), rects.rects.data(), rects.crops.data(), rects.colors.data(), rects.rects.size());
 		// TODO make the cursor blink
-		ursa::draw_quad(cursor, {0.8f,0.8f,0.8f,0.8f});
+		ursa::draw_rect(cursor, {0.8f,0.8f,0.8f,0.8f});
 
 		ursa::draw_text(fonts,2, 2,2, "Ursa testapp");
 

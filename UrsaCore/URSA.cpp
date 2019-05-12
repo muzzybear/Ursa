@@ -26,57 +26,6 @@
 #include <vector>
 #include <fstream>
 
-/*
-
-void main() {
-	ursa::window(800,600);
-
-	auto tex = ursa::texture("foo.png");
-
-	ursa::set_framefunc([&](){
-		Rect r = ursa::screenrect();
-		Rect r2 = tex.bounds().centerAt(r.w/2, r.h/2);
-		ursa::draw_quad(tex, r2);
-	});
-
-	ursa::run();
-}
-
-void main() {
-	ursa::window(800,600);
-
-	auto logo = ursa::texture("foo.png");
-
-	std::vector<ursa::Point3> ball;
-	for(int i=0; i<1000; i++) {
-		ursa::Point3 pt = glm::sphericalRand(1.0f);
-		ball.push_back(pt);
-	}
-
-	float angle = 0.0f;
-
-	ursa::set_framefunc([&](float deltaTime){
-		ursa::Rect r = ursa::screenrect();
-		ursa::Rect r2 = logo.bounds().centerAt(r.w/2, r.h/2);
-
-		angle += deltaTime * 0.05f;
-		auto transform = glm::rotate(glm::mat4(), angle, glm::vec3(0.0f, 1.0f, 0.0f));
-
-		// 3d mode is [-1..1] coordinates
-		ursa::transform_3d(transform);
-		ursa::draw_points(ball);
-
-		// 2d mode is pixel perfect
-		ursa::transform_2d();
-		ursa::draw_quad(logo, r2);
-	});
-
-	ursa::run();
-}
-
-
-*/
-
 namespace ursa {
 	namespace internal {
 		static bool initialized = false;
@@ -477,7 +426,7 @@ void main()
 		glDrawArrays(GL_LINES, 0, count);
 	}
 
-	void internal_draw_quad(Rect r, Rect uv, glm::vec4 color) {
+	void internal_draw_rect(Rect r, Rect uv, glm::vec4 color) {
 		Vertex vertices[6] = {
 			{{r.left(),  r.top(),    0.0f}, {uv.left(),  uv.top()},    color},
 			{{r.right(), r.top(),    0.0f}, {uv.right(), uv.top()},    color},
@@ -489,7 +438,7 @@ void main()
 		draw_triangles(vertices, 6);
 	}
 
-	void draw_quad(TextureHandle tex, Rect rect, Rect crop, glm::vec4 color)
+	void draw_rect(TextureHandle tex, Rect rect, Rect crop, glm::vec4 color)
 	{
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, tex.handle);
@@ -500,33 +449,33 @@ void main()
 		glUniform1i(usetexloc, GL_TRUE);
 		glUniform1i(alphatexloc, (tex.kind == TextureHandle::TextureKind::Alpha) ? GL_TRUE : GL_FALSE);
 		Rect uv = { crop.pos / tex.size(), crop.size / tex.size() };
-		internal_draw_quad(rect, uv, color);
+		internal_draw_rect(rect, uv, color);
 		glUniform1i(usetexloc, GL_FALSE);
 		glUniform1i(alphatexloc, GL_FALSE);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 
-	void draw_quad(Rect r, glm::vec4 color) {
-		internal_draw_quad(r, Rect(1, 1), color);
+	void draw_rect(Rect r, glm::vec4 color) {
+		internal_draw_rect(r, Rect(1, 1), color);
 	}
 
-	void draw_quad(TextureHandle tex, Rect rect, glm::vec4 color) {
-		draw_quad(tex, rect, tex.bounds(), color);
+	void draw_rect(TextureHandle tex, Rect rect, glm::vec4 color) {
+		draw_rect(tex, rect, tex.bounds(), color);
 	}
 
-	void draw_quads(TextureHandle tex, Rect rects[], Rect crops[], int count)
+	void draw_rects(TextureHandle tex, Rect rects[], Rect crops[], int count)
 	{
 		// TODO batch it
 		for (int i = 0; i < count; i++) {
-			draw_quad(tex, rects[i], crops[i]);
+			draw_rect(tex, rects[i], crops[i]);
 		}
 	}
 
-	void draw_quads(TextureHandle tex, Rect rects[], Rect crops[], glm::vec4 colors[], int count)
+	void draw_rects(TextureHandle tex, Rect rects[], Rect crops[], glm::vec4 colors[], int count)
 	{
 		// TODO batch it
 		for (int i = 0; i < count; i++) {
-			draw_quad(tex, rects[i], crops[i], colors[i]);
+			draw_rect(tex, rects[i], crops[i], colors[i]);
 		}
 	}
 
@@ -546,7 +495,7 @@ void main()
 			for (int x = 0; x < 3; x++) {
 				Rect drawpatch(rect.pos.x + npos[x].x,  rect.pos.y + npos[y].y,  nsize[x].x,  nsize[y].y);
 				Rect croppatch(crop.pos.x + tnpos[x].x, crop.pos.y + tnpos[y].y, tnsize[x].x, tnsize[y].y);
-				draw_quad(tex, drawpatch, croppatch, color);
+				draw_rect(tex, drawpatch, croppatch, color);
 			}
 		}
 	}
@@ -568,7 +517,7 @@ void main()
 			x += info.xadvance;
 		}
 
-		draw_quads(fonts->tex(), rects.data(), crops.data(), colors.data(), rects.size());
+		draw_rects(fonts->tex(), rects.data(), crops.data(), colors.data(), rects.size());
 	}
 
 	// ...

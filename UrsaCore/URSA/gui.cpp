@@ -173,17 +173,17 @@ namespace ursa { namespace gui {
 	}
 
 	void background(const glm::vec4 &color) {
-		draw_quad(state.viewportStack.top(), color);
+		draw_rect(state.viewportStack.top(), color);
 	}
 
 	void border(const glm::vec4 &color, float width) {
 		Rect r = state.viewportStack.top();
 
-		draw_quad({ r.left(), r.top(), r.size.x, width }, color);
-		draw_quad({ r.left(), r.bottom()-width, r.size.x, width }, color);
+		draw_rect({ r.left(), r.top(), r.size.x, width }, color);
+		draw_rect({ r.left(), r.bottom()-width, r.size.x, width }, color);
 
-		draw_quad({ r.left(), r.top()+width, width, r.size.y - width*2 }, color);
-		draw_quad({ r.right()-width, r.top()+width, width, r.size.y - width*2 }, color);
+		draw_rect({ r.left(), r.top()+width, width, r.size.y - width*2 }, color);
+		draw_rect({ r.right()-width, r.top()+width, width, r.size.y - width*2 }, color);
 	}
 
 
